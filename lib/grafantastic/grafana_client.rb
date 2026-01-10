@@ -9,9 +9,10 @@ module Grafantastic
 
     attr_reader :url
 
-    def initialize
-      @url = ENV.fetch("GRAFANA_URL") { raise Error, "GRAFANA_URL not set" }
-      @token = ENV.fetch("GRAFANA_TOKEN") { raise Error, "GRAFANA_TOKEN not set" }
+    # Initialize with explicit url/token or fall back to ENV
+    def initialize(url: nil, token: nil)
+      @url = url || ENV.fetch("GRAFANA_URL") { raise Error, "GRAFANA_URL not set" }
+      @token = token || ENV.fetch("GRAFANA_TOKEN") { raise Error, "GRAFANA_TOKEN not set" }
     end
 
     # Validates connection to Grafana by hitting the health endpoint
@@ -46,6 +47,20 @@ module Grafantastic
         url: "#{@url}#{result["url"]}",
         status: result["status"]
       }
+    end
+
+    # List all folders the API token has access to
+    def list_folders
+      response = connection.get("/api/folders")
+
+      unless response.success?
+        body = JSON.parse(response.body) rescue { "message" => response.body }
+        raise ConnectionError, "Failed to list folders (#{response.status}): #{body["message"]}"
+      end
+
+      JSON.parse(response.body)
+    rescue Faraday::Error => e
+      raise ConnectionError, "Cannot connect to Grafana at #{@url}: #{e.message}"
     end
 
     private
