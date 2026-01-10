@@ -80,8 +80,8 @@ module Grafantastic
       all_signals = extract_signals(filtered_files)
       log_verbose("Total signals extracted: #{all_signals.size}")
 
-      # Warn about dynamic metrics that couldn't be processed
-      warn_dynamic_metrics
+      # Print summary of what will be created
+      print_signal_summary(all_signals)
 
       # Validate against guard rails
       validator = Validation::Limits.new(@config)
@@ -299,13 +299,35 @@ module Grafantastic
       end
     end
 
-    def warn_dynamic_metrics
+    def print_signal_summary(signals)
+      log_counts = signals.count { |s| s.type == :log }
+      metric_counts = signals.count { |s| %i[counter gauge histogram].include?(s.type) }
+      dynamic_count = @dynamic_metrics&.size || 0
+
+      # Build panel count description
+      parts = []
+      parts << "#{log_counts} log panel#{"s" unless log_counts == 1}" if log_counts > 0
+      parts << "#{metric_counts} metric panel#{"s" unless metric_counts == 1}" if metric_counts > 0
+
+      if parts.empty?
+        warn "[grafantastic] Creating dashboard with default info panel (no signals found)"
+      else
+        warn "[grafantastic] Creating dashboard with #{parts.join(", ")}"
+      end
+
+      if dynamic_count > 0
+        warn "[grafantastic] Please see: #{dynamic_count} dynamic metric#{"s" unless dynamic_count == 1} could not be added"
+        warn_dynamic_metrics_details if @verbose
+      end
+
+      warn ""
+    end
+
+    def warn_dynamic_metrics_details
       return if @dynamic_metrics.nil? || @dynamic_metrics.empty?
 
       warn ""
-      warn "[grafantastic] ⚠️  WARNING: #{@dynamic_metrics.size} dynamic metric name(s) detected"
-      warn "[grafantastic] These metrics use runtime values and cannot be added to the dashboard:"
-      warn ""
+      warn "[grafantastic] ⚠️  Dynamic metrics use runtime values and cannot be added to the dashboard:"
 
       @dynamic_metrics.each do |m|
         warn "  • #{m[:file]}:#{m[:line]} - #{m[:receiver]}.#{m[:type]} in #{m[:class]}"
@@ -314,7 +336,6 @@ module Grafantastic
       warn ""
       warn "[grafantastic] Tip: Use static metric names with labels instead:"
       warn "  Prometheus.counter(:my_metric).increment(labels: { entity_id: id })"
-      warn ""
     end
 
     def sanitize_dashboard_title(branch_name)
