@@ -5,13 +5,13 @@ require_relative "lib/grafanatic/version"
 Gem::Specification.new do |spec|
   spec.name          = "grafanatic"
   spec.version       = Grafanatic::VERSION
-  spec.authors       = ["Your Name"]
+  spec.authors       = ["Ross Buddie"]
   spec.email         = ["you@example.com"]
 
   spec.summary       = "PR-scoped observability signal extractor and Grafana dashboard generator"
   spec.description   = "Statically analyzes Ruby source code in a Pull Request and generates " \
                        "a Grafana dashboard JSON containing panels relevant to observability signals."
-  spec.homepage      = "https://github.com/yourorg/grafanatic"
+  spec.homepage      = "https://github.com/rossme/grafanatic"
   spec.license       = "MIT"
   spec.required_ruby_version = ">= 3.0.0"
 
