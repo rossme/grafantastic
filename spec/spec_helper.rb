@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "bundler/setup"
-require "grafanatic"
+require "grafantastic"
 require "webmock/rspec"
 require "tempfile"
 

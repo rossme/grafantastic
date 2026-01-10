@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    grafanatic (0.1.0)
+    grafantastic (0.1.0)
       ast (~> 2.4)
       dotenv (>= 2.8)
       faraday (>= 2.0)
@@ -84,7 +84,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  grafanatic!
+  grafantastic!
   rspec (~> 3.12)
   rubocop (~> 1.50)
   webmock (~> 3.18)

@@ -2,15 +2,15 @@
 
 # Generate dashboard JSON and print to stdout
 dashboard:
-	@bundle exec grafanatic
+	@bundle exec grafantastic
 
 # Generate dashboard with verbose output
 dashboard-verbose:
-	@bundle exec grafanatic --verbose
+	@bundle exec grafantastic --verbose
 
 # Dry run - generate JSON only, never upload
 dashboard-dry:
-	@bundle exec grafanatic --dry-run
+	@bundle exec grafantastic --dry-run
 
 # Install dependencies
 install:
@@ -30,8 +30,8 @@ clean:
 
 # Build the gem
 build:
-	@gem build grafanatic.gemspec
+	@gem build grafantastic.gemspec
 
 # Install the gem locally
 install-gem: build
-	@gem install grafanatic-*.gem
+	@gem install grafantastic-*.gem

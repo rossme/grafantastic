@@ -1,10 +1,10 @@
-# Grafanatic
+# Grafantastic
 
 PR-scoped observability signal extractor and Grafana dashboard generator.
 
 ## Overview
 
-Grafanatic statically analyzes Ruby source code changed in a Pull Request and generates a Grafana dashboard JSON containing panels relevant to the observability signals found in that code.
+Grafantastic statically analyzes Ruby source code changed in a Pull Request and generates a Grafana dashboard JSON containing panels relevant to the observability signals found in that code.
 
 ## Installation
 
@@ -15,8 +15,8 @@ bundle install
 Or install the gem:
 
 ```bash
-gem build grafanatic.gemspec
-gem install grafanatic-0.1.0.gem
+gem build grafantastic.gemspec
+gem install grafantastic-0.1.0.gem
 ```
 
 ## Usage
@@ -25,13 +25,13 @@ gem install grafanatic-0.1.0.gem
 
 ```bash
 # Generate dashboard JSON to stdout
-bundle exec grafanatic
+bundle exec grafantastic
 
 # With verbose output
-bundle exec grafanatic --verbose
+bundle exec grafantastic --verbose
 
 # Dry run (never upload)
-bundle exec grafanatic --dry-run
+bundle exec grafantastic --dry-run
 ```
 
 ### Using Make
@@ -55,7 +55,7 @@ Create a `.env` file:
 GRAFANA_URL=https://grafana.example.com
 GRAFANA_TOKEN=your-api-token
 GRAFANA_FOLDER_ID=123          # Optional
-GRAFANATIC_DRY_RUN=true        # Optional, forces dry-run mode
+GRAFANTASTIC_DRY_RUN=true        # Optional, forces dry-run mode
 ```
 
 ## Observability Signals
@@ -113,7 +113,7 @@ If no observability signals are found, a dashboard with a single text panel is g
 
 ## GitHub Actions Integration
 
-Grafanatic works great as a GitHub Action that automatically creates dashboards for PRs.
+Grafantastic works great as a GitHub Action that automatically creates dashboards for PRs.
 
 ### Setup
 
@@ -128,7 +128,7 @@ Grafanatic works great as a GitHub Action that automatically creates dashboards 
    ```
 
 3. **That's it!** When a PR is opened or updated with Ruby file changes:
-   - Grafanatic analyzes the changed files
+   - Grafantastic analyzes the changed files
    - Creates/updates a dashboard in Grafana
    - Posts a comment on the PR with the dashboard link
 
