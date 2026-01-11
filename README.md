@@ -84,19 +84,31 @@ Set these in a `.env` file in your project root:
 
 ## Output
 
-When signals are found:
+When signals are found, JSON is output first, then a summary:
 
 ```
-[grafantastic] v0.3.0
-[grafantastic] Found: 2 logs, 3 counters, 1 gauge, 1 histogram
-[grafantastic] Creating dashboard JSON with 4 panels
-[grafantastic] Please see: 1 dynamic metric could not be added
+[grafantastic] v0.4.0
+{ ... dashboard JSON ... }
+
+[grafantastic] Dashboard created with 4 panels: 2 logs, 3 counters, 1 gauge, 1 histogram
+[grafantastic] Uploaded to: https://myorg.grafana.net/d/abc123/feature-branch
+[grafantastic] Note: 1 dynamic metric could not be added
+```
+
+In dry-run mode:
+
+```
+[grafantastic] v0.4.0
+{ ... dashboard JSON ... }
+
+[grafantastic] Dashboard created with 4 panels: 2 logs, 3 counters, 1 gauge, 1 histogram
+[grafantastic] Mode: dry-run (not uploaded)
 ```
 
 **If no signals are found, no dashboard is created:**
 
 ```
-[grafantastic] v0.3.0
+[grafantastic] v0.4.0
 [grafantastic] No observability signals found in changed files
 [grafantastic] Dashboard not created
 ```

@@ -122,6 +122,14 @@ RSpec.describe Grafantastic::CLI do
       it "outputs log count to stderr" do
         expect { described_class.run(["--dry-run"]) }.to output(/1 log/).to_stderr
       end
+
+      it "outputs dry-run mode indicator" do
+        expect { described_class.run(["--dry-run"]) }.to output(/Mode: dry-run/).to_stderr
+      end
+
+      it "outputs summary after JSON" do
+        expect { described_class.run(["--dry-run"]) }.to output(/Dashboard created with 4 panels/).to_stderr
+      end
     end
 
     context "with --verbose flag" do

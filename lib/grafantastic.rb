@@ -102,9 +102,6 @@ module Grafantastic
         return 0
       end
 
-      # Print summary of what will be created
-      print_signal_summary(all_signals)
-
       # Validate against guard rails
       validator = Validation::Limits.new(@config)
       validator.validate!(all_signals)
@@ -118,13 +115,15 @@ module Grafantastic
       )
       dashboard_json = builder.build
 
-      # Output or upload
+      # Output JSON first
+      puts JSON.pretty_generate(dashboard_json)
+
+      # Then print summary after the JSON
       if @dry_run
-        puts JSON.pretty_generate(dashboard_json)
+        print_signal_summary(all_signals, url: nil)
       else
         result = @grafana_client.upload(dashboard_json)
-        warn "Dashboard uploaded: #{result[:url]}" if result[:url]
-        puts JSON.pretty_generate(dashboard_json)
+        print_signal_summary(all_signals, url: result[:url])
       end
 
       0
@@ -244,7 +243,7 @@ module Grafantastic
       end
     end
 
-    def print_signal_summary(signals)
+    def print_signal_summary(signals, url: nil)
       log_count = signals.count { |s| s.type == :log }
       counter_count = signals.count { |s| s.type == :metric && s.metadata[:metric_type] == :counter }
       gauge_count = signals.count { |s| s.type == :metric && s.metadata[:metric_type] == :gauge }
@@ -263,11 +262,17 @@ module Grafantastic
       # Build panel count
       total_panels = [log_count, counter_count, gauge_count, histogram_count, summary_count].count { |c| c > 0 }
 
-      warn "[grafantastic] Found: #{signal_parts.join(", ")}"
-      warn "[grafantastic] Creating dashboard JSON with #{pluralize(total_panels, "panel")}"
+      warn ""
+      warn "[grafantastic] Dashboard created with #{pluralize(total_panels, "panel")}: #{signal_parts.join(", ")}"
+
+      if url
+        warn "[grafantastic] Uploaded to: #{url}"
+      else
+        warn "[grafantastic] Mode: dry-run (not uploaded)"
+      end
 
       if dynamic_count > 0
-        warn "[grafantastic] Please see: #{pluralize(dynamic_count, "dynamic metric")} could not be added"
+        warn "[grafantastic] Note: #{pluralize(dynamic_count, "dynamic metric")} could not be added"
         warn_dynamic_metrics_details if @verbose
       end
 
