@@ -32,6 +32,29 @@ RSpec.describe Grafantastic::CLI do
       end
     end
 
+    context "with invalid arguments" do
+      it "returns exit code 1" do
+        result = silence_stderr { described_class.run(["-dry-run"]) }
+        expect(result).to eq(1)
+      end
+
+      it "outputs error message to stderr" do
+        expect { described_class.run(["-dry-run"]) }.to output(/Unknown argument.*-dry-run/).to_stderr
+      end
+
+      it "suggests using --help" do
+        expect { described_class.run(["--unknown"]) }.to output(/grafantastic --help/).to_stderr
+      end
+
+      it "lists all invalid arguments" do
+        expect { described_class.run(["--foo", "-x"]) }.to output(/--foo.*-x/).to_stderr
+      end
+
+      it "still shows help when --help is included with invalid args" do
+        expect { described_class.run(["--help", "--invalid"]) }.to output(/Usage:/).to_stdout
+      end
+    end
+
     context "with no changed files" do
       it "does not generate a dashboard" do
         output = capture_stdout { described_class.run(["--dry-run"]) }
@@ -70,6 +93,34 @@ RSpec.describe Grafantastic::CLI do
         output = capture_stdout { described_class.run(["--dry-run"]) }
 
         expect { JSON.parse(output) }.not_to raise_error
+      end
+    end
+
+    context "with metrics in changed files" do
+      let(:metrics_file) { create_metrics_ruby_file }
+
+      before do
+        allow(git_context).to receive(:changed_files).and_return([metrics_file])
+      end
+
+      after do
+        File.delete(metrics_file) if File.exist?(metrics_file)
+      end
+
+      it "outputs counter count to stderr" do
+        expect { described_class.run(["--dry-run"]) }.to output(/2 counters/).to_stderr
+      end
+
+      it "outputs gauge count to stderr" do
+        expect { described_class.run(["--dry-run"]) }.to output(/1 gauge/).to_stderr
+      end
+
+      it "outputs histogram count to stderr" do
+        expect { described_class.run(["--dry-run"]) }.to output(/1 histogram/).to_stderr
+      end
+
+      it "outputs log count to stderr" do
+        expect { described_class.run(["--dry-run"]) }.to output(/1 log/).to_stderr
       end
     end
 
@@ -193,6 +244,23 @@ RSpec.describe Grafantastic::CLI do
       class NoisyService
         def process
           #{logs}
+        end
+      end
+    RUBY
+    file.close
+    file.path
+  end
+
+  def create_metrics_ruby_file
+    file = Tempfile.new(["metrics", ".rb"])
+    file.write(<<~RUBY)
+      class MetricsService
+        def process
+          logger.info "Processing"
+          StatsD.increment("payments.processed")
+          StatsD.increment("payments.success")
+          Prometheus.gauge(:queue_size).set(100)
+          StatsD.timing("request.duration", 150)
         end
       end
     RUBY

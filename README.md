@@ -16,7 +16,7 @@ Or from source:
 
 ```bash
 gem build grafantastic.gemspec
-gem install grafantastic-0.1.0.gem
+gem install grafantastic-*.gem
 ```
 
 ## Quick Start
@@ -87,14 +87,16 @@ Set these in a `.env` file in your project root:
 When signals are found:
 
 ```
-[grafantastic] Found: 2 logs, 3 counters, 1 histogram
-[grafantastic] Creating dashboard with 3 panels
+[grafantastic] v0.3.0
+[grafantastic] Found: 2 logs, 3 counters, 1 gauge, 1 histogram
+[grafantastic] Creating dashboard JSON with 4 panels
 [grafantastic] Please see: 1 dynamic metric could not be added
 ```
 
 **If no signals are found, no dashboard is created:**
 
 ```
+[grafantastic] v0.3.0
 [grafantastic] No observability signals found in changed files
 [grafantastic] Dashboard not created
 ```
@@ -109,12 +111,17 @@ When signals are found:
 
 ### Metrics
 
-| Client | Methods |
-|--------|---------|
-| Prometheus | `counter`, `gauge`, `histogram`, `summary` |
-| StatsD | `increment`, `decrement`, `gauge`, `timing`, `time` |
-| Statsd | (same as StatsD) |
-| Hesiod | `emit` |
+| Client | Methods | Metric Type |
+|--------|---------|-------------|
+| Prometheus | `counter().increment` | counter |
+| Prometheus | `gauge().set` | gauge |
+| Prometheus | `histogram().observe` | histogram |
+| Prometheus | `summary()` | summary |
+| StatsD | `increment`, `incr` | counter |
+| StatsD | `gauge`, `set` | gauge |
+| StatsD | `timing`, `time` | histogram |
+| Statsd | (same as StatsD) | |
+| Hesiod | `emit` | counter |
 
 ### Dynamic Metrics Warning
 
@@ -154,13 +161,39 @@ If any limit is exceeded, the gem aborts with a clear error message and exits wi
 - Files in `/spec/`, `/test/`, `/config/`
 - Non-Ruby files
 
-## Inheritance
+## Inheritance & Module Support
 
 Signals are extracted from:
 - The touched class/module (depth = 0)
-- Its direct parent class (depth = 1)
+- Parent classes (multi-level inheritance up to 5 levels deep)
+- Included modules (`include`)
+- Prepended modules (`prepend`)
 
-Grandparents and deeper ancestors are not traversed.
+### Example
+
+```ruby
+module Loggable
+  def log_action
+    logger.info "action_performed"  # ✅ Detected
+  end
+end
+
+class BaseProcessor
+  def process
+    StatsD.increment("base.processed")  # ✅ Detected
+  end
+end
+
+class PaymentProcessor < BaseProcessor
+  include Loggable
+  
+  def charge
+    StatsD.increment("payment.charged")  # ✅ Detected
+  end
+end
+```
+
+When `PaymentProcessor` is changed, signals from `BaseProcessor` and `Loggable` are also extracted.
 
 ## Dashboard Behavior
 

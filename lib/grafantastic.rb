@@ -16,7 +16,7 @@ require_relative "grafantastic/file_filter"
 require_relative "grafantastic/signals/signal"
 require_relative "grafantastic/ast/parser"
 require_relative "grafantastic/ast/visitor"
-require_relative "grafantastic/ast/inheritance_resolver"
+require_relative "grafantastic/ast/ancestor_resolver"
 require_relative "grafantastic/signals/log_extractor"
 require_relative "grafantastic/signals/metric_extractor"
 require_relative "grafantastic/validation/limits"
@@ -30,6 +30,9 @@ module Grafantastic
   class GitContextError < Error; end
 
   class CLI
+    VALID_OPTIONS = %w[--dry-run --verbose -v --help -h].freeze
+    VALID_SUBCOMMANDS = %w[folders].freeze
+
     def self.run(args)
       new(args).execute
     end
@@ -44,6 +47,17 @@ module Grafantastic
     end
 
     def execute
+      # Validate arguments first (unless asking for help)
+      unless @help
+        invalid_args = find_invalid_arguments
+        if invalid_args.any?
+          warn "ERROR: Unknown argument(s): #{invalid_args.join(", ")}"
+          warn ""
+          warn "Run 'grafantastic --help' for usage information."
+          return 1
+        end
+      end
+
       if @help && @subcommand.nil?
         print_help
         return 0
@@ -54,6 +68,8 @@ module Grafantastic
       when "folders"
         return list_grafana_folders
       end
+
+      warn "[grafantastic] v#{VERSION}"
 
       # Validate Grafana connection upfront (unless dry-run)
       unless @dry_run
@@ -130,8 +146,13 @@ module Grafantastic
     private
 
     def extract_subcommand(args)
-      subcommands = %w[folders]
-      args.find { |arg| subcommands.include?(arg) }
+      args.find { |arg| VALID_SUBCOMMANDS.include?(arg) }
+    end
+
+    def find_invalid_arguments
+      @args.reject do |arg|
+        VALID_OPTIONS.include?(arg) || VALID_SUBCOMMANDS.include?(arg)
+      end
     end
 
     def list_grafana_folders
@@ -171,7 +192,7 @@ module Grafantastic
     def extract_signals(files)
       signals = []
       @dynamic_metrics = []
-      inheritance_resolver = AST::InheritanceResolver.new
+      ancestor_resolver = AST::AncestorResolver.new
 
       files.each do |file_path|
         next unless File.exist?(file_path)
@@ -188,21 +209,23 @@ module Grafantastic
         signals.concat(Signals::MetricExtractor.extract(visitor))
         collect_dynamic_metrics(visitor, file_path)
 
-        # Resolve parent classes and extract their signals (depth = 1)
-        visitor.class_definitions.each do |class_def|
-          parent_file = inheritance_resolver.resolve_parent(class_def[:parent], file_path)
-          next unless parent_file && File.exist?(parent_file)
+        # Collect all ancestors (parents + included modules, recursively)
+        ancestors = ancestor_resolver.collect_ancestors(visitor, file_path)
 
-          parent_source = File.read(parent_file)
-          parent_ast = AST::Parser.parse(parent_source, parent_file)
-          next unless parent_ast
+        ancestors.each do |ancestor|
+          ancestor_source = File.read(ancestor[:file])
+          ancestor_ast = AST::Parser.parse(ancestor_source, ancestor[:file])
+          next unless ancestor_ast
 
-          parent_visitor = AST::Visitor.new(file_path: parent_file, inheritance_depth: 1)
-          parent_visitor.process(parent_ast)
+          ancestor_visitor = AST::Visitor.new(
+            file_path: ancestor[:file],
+            inheritance_depth: ancestor[:depth]
+          )
+          ancestor_visitor.process(ancestor_ast)
 
-          signals.concat(Signals::LogExtractor.extract(parent_visitor))
-          signals.concat(Signals::MetricExtractor.extract(parent_visitor))
-          collect_dynamic_metrics(parent_visitor, parent_file)
+          signals.concat(Signals::LogExtractor.extract(ancestor_visitor))
+          signals.concat(Signals::MetricExtractor.extract(ancestor_visitor))
+          collect_dynamic_metrics(ancestor_visitor, ancestor[:file])
         end
       end
 
@@ -223,9 +246,10 @@ module Grafantastic
 
     def print_signal_summary(signals)
       log_count = signals.count { |s| s.type == :log }
-      counter_count = signals.count { |s| s.type == :counter }
-      gauge_count = signals.count { |s| s.type == :gauge }
-      histogram_count = signals.count { |s| s.type == :histogram }
+      counter_count = signals.count { |s| s.type == :metric && s.metadata[:metric_type] == :counter }
+      gauge_count = signals.count { |s| s.type == :metric && s.metadata[:metric_type] == :gauge }
+      histogram_count = signals.count { |s| s.type == :metric && s.metadata[:metric_type] == :histogram }
+      summary_count = signals.count { |s| s.type == :metric && s.metadata[:metric_type] == :summary }
       dynamic_count = @dynamic_metrics&.size || 0
 
       # Build signal breakdown
@@ -234,12 +258,13 @@ module Grafantastic
       signal_parts << pluralize(counter_count, "counter") if counter_count > 0
       signal_parts << pluralize(gauge_count, "gauge") if gauge_count > 0
       signal_parts << pluralize(histogram_count, "histogram") if histogram_count > 0
+      signal_parts << pluralize(summary_count, "summary") if summary_count > 0
 
       # Build panel count
-      total_panels = [log_count, counter_count, gauge_count, histogram_count].count { |c| c > 0 }
+      total_panels = [log_count, counter_count, gauge_count, histogram_count, summary_count].count { |c| c > 0 }
 
       warn "[grafantastic] Found: #{signal_parts.join(", ")}"
-      warn "[grafantastic] Creating dashboard with #{pluralize(total_panels, "panel")}"
+      warn "[grafantastic] Creating dashboard JSON with #{pluralize(total_panels, "panel")}"
 
       if dynamic_count > 0
         warn "[grafantastic] Please see: #{pluralize(dynamic_count, "dynamic metric")} could not be added"

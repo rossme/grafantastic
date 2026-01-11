@@ -4,7 +4,9 @@ module Grafantastic
   module AST
     class Visitor
       attr_reader :file_path, :inheritance_depth, :class_definitions,
-                  :log_calls, :metric_calls, :dynamic_metric_calls, :current_class
+                  :module_definitions, :log_calls, :metric_calls,
+                  :dynamic_metric_calls, :current_class,
+                  :included_modules, :prepended_modules, :extended_modules
 
       # Logger method patterns
       LOG_RECEIVERS = %i[logger Rails].freeze
@@ -21,9 +23,13 @@ module Grafantastic
         @file_path = file_path
         @inheritance_depth = inheritance_depth
         @class_definitions = []
+        @module_definitions = []
         @log_calls = []
         @metric_calls = []
         @dynamic_metric_calls = []
+        @included_modules = []
+        @prepended_modules = []
+        @extended_modules = []
         @current_class = nil
         @class_stack = []
       end
@@ -73,9 +79,16 @@ module Grafantastic
         module_name_node, body = node.children
         module_name = extract_const_name(module_name_node)
 
+        full_module_name = @class_stack.empty? ? module_name : "#{@class_stack.join("::")}::#{module_name}"
+
+        @module_definitions << {
+          name: full_module_name,
+          file: @file_path
+        }
+
         @class_stack.push(module_name)
         previous_class = @current_class
-        @current_class = @class_stack.join("::")
+        @current_class = full_module_name
 
         process(body) if body
 
@@ -90,10 +103,39 @@ module Grafantastic
           record_log_call(node, receiver, method_name, args)
         elsif metric_call?(receiver, method_name, args)
           record_metric_call(node, receiver, method_name, args)
+        elsif module_inclusion?(receiver, method_name)
+          record_module_inclusion(method_name, args)
         end
 
         # Continue traversing
         node.children.each { |child| process(child) }
+      end
+
+      def module_inclusion?(receiver, method_name)
+        # include/prepend/extend at class/module level (receiver is nil)
+        receiver.nil? && %i[include prepend extend].include?(method_name)
+      end
+
+      def record_module_inclusion(method_name, args)
+        args.each do |arg|
+          module_name = extract_const_name(arg)
+          next unless module_name
+
+          entry = {
+            module_name: module_name,
+            including_class: @current_class,
+            file: @file_path
+          }
+
+          case method_name
+          when :include
+            @included_modules << entry
+          when :prepend
+            @prepended_modules << entry
+          when :extend
+            @extended_modules << entry
+          end
+        end
       end
 
       def log_call?(receiver, method_name)

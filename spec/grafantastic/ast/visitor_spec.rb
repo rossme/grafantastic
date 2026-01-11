@@ -358,5 +358,201 @@ RSpec.describe Grafantastic::AST::Visitor do
         expect(visitor.dynamic_metric_calls.size).to eq(1)
       end
     end
+
+    context "with module definitions" do
+      it "extracts module definitions" do
+        source = <<~RUBY
+          module Loggable
+            def log_action
+              logger.info "action_performed"
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.module_definitions.size).to eq(1)
+        expect(visitor.module_definitions.first[:name]).to eq("Loggable")
+      end
+
+      it "extracts nested module definitions" do
+        source = <<~RUBY
+          module Concerns
+            module Loggable
+              def log_action
+                logger.info "action_performed"
+              end
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        names = visitor.module_definitions.map { |m| m[:name] }
+        expect(names).to include("Concerns", "Concerns::Loggable")
+      end
+
+      it "extracts signals from module methods" do
+        source = <<~RUBY
+          module Trackable
+            def track_event
+              StatsD.increment("events.tracked")
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.metric_calls.size).to eq(1)
+        expect(visitor.metric_calls.first[:defining_class]).to eq("Trackable")
+      end
+    end
+
+    context "with module inclusions" do
+      it "detects include statements" do
+        source = <<~RUBY
+          class PaymentProcessor
+            include Loggable
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.included_modules.size).to eq(1)
+        expect(visitor.included_modules.first[:module_name]).to eq("Loggable")
+        expect(visitor.included_modules.first[:including_class]).to eq("PaymentProcessor")
+      end
+
+      it "detects multiple includes" do
+        source = <<~RUBY
+          class PaymentProcessor
+            include Loggable
+            include Trackable
+            include Concerns::Retryable
+          end
+        RUBY
+        parse_and_visit(source)
+
+        module_names = visitor.included_modules.map { |m| m[:module_name] }
+        expect(module_names).to eq(["Loggable", "Trackable", "Concerns::Retryable"])
+      end
+
+      it "detects include with multiple modules on one line" do
+        source = <<~RUBY
+          class PaymentProcessor
+            include Loggable, Trackable
+          end
+        RUBY
+        parse_and_visit(source)
+
+        module_names = visitor.included_modules.map { |m| m[:module_name] }
+        expect(module_names).to eq(["Loggable", "Trackable"])
+      end
+
+      it "detects prepend statements" do
+        source = <<~RUBY
+          class PaymentProcessor
+            prepend Retryable
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.prepended_modules.size).to eq(1)
+        expect(visitor.prepended_modules.first[:module_name]).to eq("Retryable")
+      end
+
+      it "detects extend statements" do
+        source = <<~RUBY
+          class PaymentProcessor
+            extend ClassMethods
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.extended_modules.size).to eq(1)
+        expect(visitor.extended_modules.first[:module_name]).to eq("ClassMethods")
+      end
+
+      it "tracks inclusion context correctly in nested classes" do
+        source = <<~RUBY
+          module Services
+            class PaymentProcessor
+              include Loggable
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.included_modules.first[:including_class]).to eq("Services::PaymentProcessor")
+      end
+    end
+
+    context "with inline namespaced classes" do
+      it "handles inline namespace class definitions" do
+        source = <<~RUBY
+          class Admin::UsersController < Admin::BaseController
+            def index
+              logger.info "listing_users"
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.class_definitions.first[:name]).to eq("Admin::UsersController")
+        expect(visitor.class_definitions.first[:parent]).to eq("Admin::BaseController")
+      end
+
+      it "handles deeply namespaced inline classes" do
+        source = <<~RUBY
+          class Services::Payments::StripeProcessor < Services::Payments::BaseProcessor
+            def charge
+              StatsD.increment("stripe.charges")
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.class_definitions.first[:name]).to eq("Services::Payments::StripeProcessor")
+        expect(visitor.class_definitions.first[:parent]).to eq("Services::Payments::BaseProcessor")
+        expect(visitor.metric_calls.first[:defining_class]).to eq("Services::Payments::StripeProcessor")
+      end
+    end
+
+    context "with Rails concerns" do
+      it "extracts signals from ActiveSupport::Concern modules" do
+        source = <<~RUBY
+          module Trackable
+            extend ActiveSupport::Concern
+
+            def track_action
+              StatsD.increment("actions.tracked")
+              logger.info "action_tracked"
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.metric_calls.size).to eq(1)
+        expect(visitor.log_calls.size).to eq(1)
+        expect(visitor.extended_modules.first[:module_name]).to eq("ActiveSupport::Concern")
+      end
+
+      it "extracts signals from included blocks" do
+        source = <<~RUBY
+          module Trackable
+            extend ActiveSupport::Concern
+
+            included do
+              logger.info "module_included"
+            end
+
+            def track
+              StatsD.increment("tracked")
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        # The logger.info inside `included do` is still a send node we should capture
+        log_events = visitor.log_calls.map { |l| l[:event_name] }
+        expect(log_events).to include("module_included")
+      end
+    end
   end
 end
