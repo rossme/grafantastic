@@ -34,6 +34,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Need full history for git diff
+          ref: ${{ github.event.pull_request.head.sha }}  # Checkout the PR head
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1

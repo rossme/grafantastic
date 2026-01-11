@@ -56,4 +56,60 @@ RSpec.describe Grafantastic::GitContext do
       expect { described_class.new }.not_to raise_error
     end
   end
+
+  describe "GitHub Actions PR context" do
+    let(:context) { described_class.new }
+
+    describe "#github_pr_context?" do
+      it "detects GitHub Actions pull request context" do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("GITHUB_ACTIONS").and_return("true")
+        allow(ENV).to receive(:[]).with("GITHUB_EVENT_NAME").and_return("pull_request")
+
+        expect(context.send(:github_pr_context?)).to be true
+      end
+
+      it "returns false when not in GitHub Actions" do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("GITHUB_ACTIONS").and_return(nil)
+
+        expect(context.send(:github_pr_context?)).to be false
+      end
+
+      it "returns false when event is not pull_request" do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("GITHUB_ACTIONS").and_return("true")
+        allow(ENV).to receive(:[]).with("GITHUB_EVENT_NAME").and_return("push")
+
+        expect(context.send(:github_pr_context?)).to be false
+      end
+    end
+
+    describe "#github_pr_changed_files" do
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("GITHUB_BASE_REF").and_return("main")
+      end
+
+      it "uses GITHUB_BASE_REF for comparison" do
+        allow(context).to receive(:run_git).with("fetch", "origin", "main", allow_failure: true).and_return("")
+        allow(context).to receive(:run_git).with("diff", "--name-only", "origin/main...HEAD", allow_failure: true)
+          .and_return("app/models/user.rb\napp/controllers/users_controller.rb\n")
+
+        files = context.send(:github_pr_changed_files)
+
+        expect(files).to eq(["app/models/user.rb", "app/controllers/users_controller.rb"])
+      end
+
+      it "returns empty array when no files found" do
+        allow(context).to receive(:run_git).with("fetch", "origin", "main", allow_failure: true).and_return("")
+        allow(context).to receive(:run_git).with("diff", "--name-only", "origin/main...HEAD", allow_failure: true)
+          .and_return("")
+
+        files = context.send(:github_pr_changed_files)
+
+        expect(files).to eq([])
+      end
+    end
+  end
 end

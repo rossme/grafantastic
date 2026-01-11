@@ -52,10 +52,34 @@ module Grafantastic
     end
 
     def diff_against_base
+      # Special handling for GitHub Actions pull requests
+      if github_pr_context?
+        return github_pr_changed_files
+      end
+
       merge_base = run_git("merge-base", @base_ref, "HEAD", allow_failure: true).strip
       return [] unless $?.success? && !merge_base.empty?
 
       result = run_git("diff", "--name-only", merge_base, "HEAD", allow_failure: true)
+      return [] unless $?.success?
+
+      result.split("\n").reject(&:empty?)
+    end
+
+    def github_pr_context?
+      ENV["GITHUB_ACTIONS"] == "true" && ENV["GITHUB_EVENT_NAME"] == "pull_request"
+    end
+
+    def github_pr_changed_files
+      # In GitHub Actions PR context, compare against the base branch
+      # GitHub checks out a merge commit, so we compare HEAD against origin/base
+      base_ref = ENV["GITHUB_BASE_REF"] || @base_ref
+      
+      # First, ensure we have the base ref
+      run_git("fetch", "origin", base_ref, allow_failure: true)
+      
+      # Use three-dot diff to get only the commits in the PR branch
+      result = run_git("diff", "--name-only", "origin/#{base_ref}...HEAD", allow_failure: true)
       return [] unless $?.success?
 
       result.split("\n").reject(&:empty?)
