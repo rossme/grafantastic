@@ -26,6 +26,103 @@ module Grafantastic
       # Alias for backwards compatibility
       alias resolve_parent resolve
 
+      # Collect ancestors from a structure hash (class_definitions, included_modules, etc.)
+      # This is the preferred method for use with Detectors
+      # @param structure [Hash] Structure with :class_definitions, :included_modules, etc.
+      # @param current_file [String] Path to the current file
+      # @param current_depth [Integer] Current depth in the hierarchy
+      # @param visited [Set] Set of already visited ancestors
+      # @return [Array<Hash>] Array of ancestor hashes
+      def collect_ancestors_from_structure(structure, current_file, current_depth: 0, visited: nil)
+        visited ||= Set.new
+        return [] if current_depth >= MAX_DEPTH
+
+        ancestors = []
+
+        # Collect parent classes
+        structure[:class_definitions].each do |class_def|
+          next unless class_def[:parent]
+          next if visited.include?(class_def[:parent])
+
+          parent_file = resolve(class_def[:parent], current_file)
+          next unless parent_file && File.exist?(parent_file)
+
+          visited.add(class_def[:parent])
+          ancestors << {
+            name: class_def[:parent],
+            file: parent_file,
+            depth: current_depth + 1,
+            type: :class
+          }
+
+          # Recursively get grandparents by parsing the parent file
+          parent_source = File.read(parent_file)
+          parent_ast = Parser.parse(parent_source, parent_file)
+          if parent_ast
+            parent_visitor = Visitor.new(file_path: parent_file, inheritance_depth: current_depth + 1)
+            parent_visitor.process(parent_ast)
+            parent_structure = {
+              class_definitions: parent_visitor.class_definitions,
+              included_modules: parent_visitor.included_modules,
+              prepended_modules: parent_visitor.prepended_modules
+            }
+            ancestors.concat(
+              collect_ancestors_from_structure(parent_structure, parent_file, current_depth: current_depth + 1, visited: visited)
+            )
+          end
+        end
+
+        # Collect included modules
+        structure[:included_modules].each do |mod|
+          next if visited.include?(mod[:module_name])
+
+          module_file = resolve(mod[:module_name], current_file)
+          next unless module_file && File.exist?(module_file)
+
+          visited.add(mod[:module_name])
+          ancestors << {
+            name: mod[:module_name],
+            file: module_file,
+            depth: current_depth + 1,
+            type: :module
+          }
+
+          # Modules can include other modules
+          module_source = File.read(module_file)
+          module_ast = Parser.parse(module_source, module_file)
+          if module_ast
+            module_visitor = Visitor.new(file_path: module_file, inheritance_depth: current_depth + 1)
+            module_visitor.process(module_ast)
+            module_structure = {
+              class_definitions: module_visitor.class_definitions,
+              included_modules: module_visitor.included_modules,
+              prepended_modules: module_visitor.prepended_modules
+            }
+            ancestors.concat(
+              collect_ancestors_from_structure(module_structure, module_file, current_depth: current_depth + 1, visited: visited)
+            )
+          end
+        end
+
+        # Also handle prepended modules
+        structure[:prepended_modules].each do |mod|
+          next if visited.include?(mod[:module_name])
+
+          module_file = resolve(mod[:module_name], current_file)
+          next unless module_file && File.exist?(module_file)
+
+          visited.add(mod[:module_name])
+          ancestors << {
+            name: mod[:module_name],
+            file: module_file,
+            depth: current_depth + 1,
+            type: :module
+          }
+        end
+
+        ancestors
+      end
+
       # Recursively collect all ancestors (parents + included modules)
       # Returns array of { name:, file:, depth:, type: :class/:module }
       def collect_ancestors(visitor, current_file, current_depth: 0, visited: nil)

@@ -22,7 +22,8 @@ RSpec.describe Grafantastic::Signals::LogExtractor do
       signals = described_class.extract(visitor)
 
       expect(signals.size).to eq(1)
-      expect(signals.first).to be_a(Grafantastic::Signals::Signal)
+      # New typed signals - Log
+      expect(signals.first).to respond_to(:type, :name, :metadata)
       expect(signals.first.type).to eq(:log)
       expect(signals.first.name).to eq("payment_processed")
     end

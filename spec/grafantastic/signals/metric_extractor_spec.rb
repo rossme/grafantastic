@@ -21,7 +21,8 @@ RSpec.describe Grafantastic::Signals::MetricExtractor do
       signals = described_class.extract(visitor)
 
       expect(signals.size).to eq(1)
-      expect(signals.first).to be_a(Grafantastic::Signals::Signal)
+      # New typed signals - Counter, Gauge, Histogram, etc.
+      expect(signals.first).to respond_to(:type, :name, :metadata)
       expect(signals.first.type).to eq(:metric)
       expect(signals.first.name).to eq("payments_total")
     end

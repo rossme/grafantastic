@@ -17,6 +17,11 @@ require_relative "grafantastic/signals/signal"
 require_relative "grafantastic/ast/parser"
 require_relative "grafantastic/ast/visitor"
 require_relative "grafantastic/ast/ancestor_resolver"
+require_relative "grafantastic/detectors/ruby_detector"
+require_relative "grafantastic/renderers/grafana"
+require_relative "grafantastic/clients/grafana"
+require_relative "grafantastic/services/signal_collector"
+require_relative "grafantastic/formatters/dashboard_title"
 require_relative "grafantastic/signals/log_extractor"
 require_relative "grafantastic/signals/metric_extractor"
 require_relative "grafantastic/validation/limits"
@@ -90,8 +95,10 @@ module Grafantastic
         log_verbose("No Ruby application files changed")
       end
 
-      # Extract signals from all filtered files
-      all_signals = extract_signals(filtered_files)
+      # Collect signals from filtered files (including inherited signals)
+      collector = Services::SignalCollector.new
+      all_signals = collector.collect(filtered_files)
+      @dynamic_metrics = collector.dynamic_metrics
       log_verbose("Total signals extracted: #{all_signals.size}")
 
       # Exit early if no signals found
@@ -106,14 +113,14 @@ module Grafantastic
       validator = Validation::Limits.new(@config)
       validator.validate!(all_signals)
 
-      # Build dashboard
-      dashboard_title = sanitize_dashboard_title(branch_name)
-      builder = Dashboard::Builder.new(
-        title: dashboard_title,
+      # Render dashboard using Grafana renderer
+      dashboard_title = Formatters::DashboardTitle.sanitize(branch_name)
+      renderer = Renderers::Grafana.new(
         signals: all_signals,
-        config: @config
+        title: dashboard_title,
+        folder_id: @config.grafana_folder_id
       )
-      dashboard_json = builder.build
+      dashboard_json = renderer.render
 
       # Output JSON first
       puts JSON.pretty_generate(dashboard_json)
@@ -133,7 +140,7 @@ module Grafantastic
     rescue GitContextError => e
       warn "ERROR: #{e.message}"
       1
-    rescue GrafanaClient::ConnectionError => e
+    rescue Clients::Grafana::ConnectionError => e
       warn "ERROR: #{e.message}"
       1
     rescue StandardError => e
@@ -155,7 +162,7 @@ module Grafantastic
     end
 
     def list_grafana_folders
-      client = GrafanaClient.new
+      client = Clients::Grafana.new
       folders = client.list_folders
 
       if folders.empty?
@@ -170,7 +177,7 @@ module Grafantastic
         puts "Set GRAFANA_FOLDER_ID in your .env file to use a specific folder"
       end
       0
-    rescue GrafanaClient::ConnectionError => e
+    rescue Clients::Grafana::ConnectionError => e
       warn "ERROR: #{e.message}"
       1
     rescue Error => e
@@ -181,66 +188,11 @@ module Grafantastic
     def validate_grafana_connection!
       log_verbose("Validating Grafana connection...")
 
-      client = GrafanaClient.new
+      client = Clients::Grafana.new
       client.health_check!
 
       log_verbose("Connected to Grafana at #{client.url}")
       @grafana_client = client
-    end
-
-    def extract_signals(files)
-      signals = []
-      @dynamic_metrics = []
-      ancestor_resolver = AST::AncestorResolver.new
-
-      files.each do |file_path|
-        next unless File.exist?(file_path)
-
-        source = File.read(file_path)
-        ast = AST::Parser.parse(source, file_path)
-        next unless ast
-
-        # Extract from the file directly (depth = 0)
-        visitor = AST::Visitor.new(file_path: file_path, inheritance_depth: 0)
-        visitor.process(ast)
-
-        signals.concat(Signals::LogExtractor.extract(visitor))
-        signals.concat(Signals::MetricExtractor.extract(visitor))
-        collect_dynamic_metrics(visitor, file_path)
-
-        # Collect all ancestors (parents + included modules, recursively)
-        ancestors = ancestor_resolver.collect_ancestors(visitor, file_path)
-
-        ancestors.each do |ancestor|
-          ancestor_source = File.read(ancestor[:file])
-          ancestor_ast = AST::Parser.parse(ancestor_source, ancestor[:file])
-          next unless ancestor_ast
-
-          ancestor_visitor = AST::Visitor.new(
-            file_path: ancestor[:file],
-            inheritance_depth: ancestor[:depth]
-          )
-          ancestor_visitor.process(ancestor_ast)
-
-          signals.concat(Signals::LogExtractor.extract(ancestor_visitor))
-          signals.concat(Signals::MetricExtractor.extract(ancestor_visitor))
-          collect_dynamic_metrics(ancestor_visitor, ancestor[:file])
-        end
-      end
-
-      signals.uniq { |s| [s.type, s.name, s.source_file, s.defining_class] }
-    end
-
-    def collect_dynamic_metrics(visitor, file_path)
-      visitor.dynamic_metric_calls.each do |call|
-        @dynamic_metrics << {
-          file: file_path,
-          line: call[:line],
-          type: call[:metric_type],
-          class: call[:defining_class],
-          receiver: call[:receiver]
-        }
-      end
     end
 
     def print_signal_summary(signals, url: nil)
@@ -304,16 +256,6 @@ module Grafantastic
       warn ""
       warn "[grafantastic] Tip: Use static metric names with labels instead:"
       warn "  Prometheus.counter(:my_metric).increment(labels: { entity_id: id })"
-    end
-
-    def sanitize_dashboard_title(branch_name)
-      sanitized = branch_name
-        .gsub(/[^a-zA-Z0-9\-_]/, "-")
-        .gsub(/-+/, "-")
-        .gsub(/^-|-$/, "")
-
-      sanitized = "pr-dashboard" if sanitized.empty?
-      sanitized[0, 40]
     end
 
     def log_verbose(message)

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../signal/log"
+
 module Grafantastic
   module Signals
     class LogExtractor
@@ -8,8 +10,8 @@ module Grafantastic
           visitor.log_calls.filter_map do |log_call|
             event_name = log_call[:event_name] || generate_fallback_name(log_call)
 
-            Signal.new(
-              type: :log,
+            # Use explicit Log signal type
+            Grafantastic::Signal::Log.new(
               name: event_name,
               source_file: visitor.file_path,
               defining_class: log_call[:defining_class],
