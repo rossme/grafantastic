@@ -178,6 +178,126 @@ RSpec.describe Diffdash::AST::Visitor do
         levels = visitor.log_calls.map { |l| l[:level] }
         expect(levels).to eq(%w[info debug error])
       end
+
+      it "detects logger.unknown calls" do
+        source = <<~RUBY
+          class Foo
+            def bar
+              logger.unknown "Unknown severity message"
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.log_calls.size).to eq(1)
+        expect(visitor.log_calls.first[:level]).to eq("unknown")
+      end
+
+      it "detects logger.add with symbol severity" do
+        source = <<~RUBY
+          class Foo
+            def bar
+              logger.add(:info, "message via add")
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.log_calls.size).to eq(1)
+        expect(visitor.log_calls.first[:level]).to eq("info")
+        expect(visitor.log_calls.first[:event_name]).to eq("message_via_add")
+      end
+
+      it "detects logger.log with symbol severity" do
+        source = <<~RUBY
+          class Foo
+            def bar
+              logger.log(:error, "message via log")
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.log_calls.size).to eq(1)
+        expect(visitor.log_calls.first[:level]).to eq("error")
+        expect(visitor.log_calls.first[:event_name]).to eq("message_via_log")
+      end
+
+      it "detects logger.add with Logger constant severity" do
+        source = <<~RUBY
+          class Foo
+            def bar
+              logger.add(Logger::WARN, "warning message")
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.log_calls.size).to eq(1)
+        expect(visitor.log_calls.first[:level]).to eq("warn")
+      end
+
+      it "detects logger.add with numeric severity" do
+        source = <<~RUBY
+          class Foo
+            def bar
+              logger.add(2, "warn level message")
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.log_calls.size).to eq(1)
+        expect(visitor.log_calls.first[:level]).to eq("warn")
+      end
+
+      it "detects constant logger objects" do
+        source = <<~RUBY
+          class Foo
+            LOG = Logger.new(STDOUT)
+            
+            def bar
+              LOG.info "Using constant logger"
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.log_calls.size).to eq(1)
+        expect(visitor.log_calls.first[:level]).to eq("info")
+      end
+
+      it "detects LOGGER constant" do
+        source = <<~RUBY
+          class Foo
+            LOGGER = Logger.new(STDERR)
+            
+            def bar
+              LOGGER.error "Error via LOGGER constant"
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.log_calls.size).to eq(1)
+        expect(visitor.log_calls.first[:level]).to eq("error")
+      end
+
+      it "detects class variable logger" do
+        source = <<~RUBY
+          class Foo
+            @@logger = Logger.new(STDOUT)
+            
+            def bar
+              @@logger.info "Class variable logger"
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.log_calls.size).to eq(1)
+        expect(visitor.log_calls.first[:level]).to eq("info")
+      end
     end
 
     context "with metric calls" do

@@ -10,7 +10,8 @@ module Diffdash
 
       # Logger method patterns
       LOG_RECEIVERS = %i[logger Rails].freeze
-      LOG_METHODS = %i[debug info warn error fatal].freeze
+      LOG_METHODS = %i[debug info warn error fatal unknown].freeze
+      LOG_GENERIC_METHODS = %i[add log].freeze # Generic logging methods that take severity as first arg
 
       # Metric client patterns
       METRIC_RECEIVERS = %i[Prometheus StatsD Statsd Hesiod].freeze
@@ -139,7 +140,8 @@ module Diffdash
       end
 
       def log_call?(receiver, method_name)
-        return false unless LOG_METHODS.include?(method_name)
+        # Check if it's a standard log method or generic method
+        return false unless LOG_METHODS.include?(method_name) || LOG_GENERIC_METHODS.include?(method_name)
 
         case receiver&.type
         when :send
@@ -147,9 +149,14 @@ module Diffdash
           recv_recv, recv_method = receiver.children
           return true if recv_method == :logger
           return true if recv_recv&.type == :const && LOG_RECEIVERS.include?(extract_const_name(recv_recv)&.to_sym)
-        when :lvar, :ivar
-          # @logger.info or logger.info
+        when :lvar, :ivar, :cvar
+          # @logger.info or logger.info or @@logger.info
           return receiver.children.first.to_s.include?("logger")
+        when :const
+          # LOG.info or LOGGER.info (constant logger objects)
+          const_name = extract_const_name(receiver)
+          # Match common logger constant names
+          return const_name&.match?(/\b(log|logger)\b/i)
         end
 
         false
@@ -184,14 +191,59 @@ module Diffdash
       end
 
       def record_log_call(node, receiver, method_name, args)
-        event_name = extract_log_event_name(args)
+        # Handle generic methods (add, log) that take severity as first arg
+        if LOG_GENERIC_METHODS.include?(method_name)
+          level, *message_args = extract_generic_log_info(args)
+          event_name = extract_log_event_name(message_args)
+          
+          @log_calls << {
+            level: level || "info",
+            event_name: event_name,
+            defining_class: @current_class || "(top-level)",
+            line: node.loc&.line
+          }
+        else
+          # Standard logger.info/debug/etc style calls
+          event_name = extract_log_event_name(args)
 
-        @log_calls << {
-          level: method_name.to_s,
-          event_name: event_name,
-          defining_class: @current_class || "(top-level)",
-          line: node.loc&.line
-        }
+          @log_calls << {
+            level: method_name.to_s,
+            event_name: event_name,
+            defining_class: @current_class || "(top-level)",
+            line: node.loc&.line
+          }
+        end
+      end
+      
+      def extract_generic_log_info(args)
+        return [nil] if args.empty?
+        
+        first_arg = args.first
+        # Generic log methods can be called as:
+        # logger.add(Logger::INFO, "message")
+        # logger.add(:info, "message")
+        # logger.add("message") - defaults to info
+        if first_arg&.type == :sym && LOG_METHODS.include?(first_arg.children.first)
+          level = first_arg.children.first.to_s
+          [level, *args[1..-1]]
+        elsif first_arg&.type == :const
+          # Handle Logger::INFO, Logger::DEBUG, etc.
+          const_name = extract_const_name(first_arg)
+          if const_name&.match?(/^Logger::/)
+            level = const_name.split("::").last.downcase
+            [level, *args[1..-1]]
+          else
+            ["info", *args]
+          end
+        elsif first_arg&.type == :int
+          # Numeric severity levels (0=debug, 1=info, 2=warn, 3=error, 4=fatal, 5=unknown)
+          severity_map = ["debug", "info", "warn", "error", "fatal", "unknown"]
+          severity_num = first_arg.children.first
+          level = severity_map[severity_num] || "info"
+          [level, *args[1..-1]]
+        else
+          ["info", *args]
+        end
       end
 
       def record_metric_call(node, receiver, method_name, args)
