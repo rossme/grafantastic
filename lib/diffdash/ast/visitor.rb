@@ -11,6 +11,9 @@ module Diffdash
       # Logger method patterns
       LOG_RECEIVERS = %i[logger Rails].freeze
       LOG_METHODS = %i[debug info warn error fatal].freeze
+      
+      # Loggy module patterns
+      LOGGY_MODULES = %w[Loggy::ClassLogger Loggy::InstanceLogger].freeze
 
       # Metric client patterns
       METRIC_RECEIVERS = %i[Prometheus StatsD Statsd Hesiod].freeze
@@ -139,6 +142,11 @@ module Diffdash
       end
 
       def log_call?(receiver, method_name)
+        # Check for Loggy-style log(...) calls
+        if method_name == :log && receiver.nil? && has_loggy_module?
+          return true
+        end
+        
         return false unless LOG_METHODS.include?(method_name)
 
         case receiver&.type
@@ -153,6 +161,17 @@ module Diffdash
         end
 
         false
+      end
+      
+      def has_loggy_module?
+        return false unless @current_class
+        
+        # Check included, prepended, and extended modules for Loggy modules
+        all_modules = @included_modules + @prepended_modules + @extended_modules
+        all_modules.any? do |mod|
+          mod[:including_class] == @current_class && 
+            LOGGY_MODULES.include?(mod[:module_name])
+        end
       end
 
       # Methods that create metric objects (not action methods)
@@ -184,14 +203,43 @@ module Diffdash
       end
 
       def record_log_call(node, receiver, method_name, args)
-        event_name = extract_log_event_name(args)
+        # Handle Loggy-style log(...) calls
+        if method_name == :log && receiver.nil?
+          level, *message_args = extract_loggy_call_info(args)
+          event_name = extract_log_event_name(message_args)
+          
+          @log_calls << {
+            level: level || "info",
+            event_name: event_name,
+            defining_class: @current_class || "(top-level)",
+            line: node.loc&.line
+          }
+        else
+          # Standard logger.info style calls
+          event_name = extract_log_event_name(args)
 
-        @log_calls << {
-          level: method_name.to_s,
-          event_name: event_name,
-          defining_class: @current_class || "(top-level)",
-          line: node.loc&.line
-        }
+          @log_calls << {
+            level: method_name.to_s,
+            event_name: event_name,
+            defining_class: @current_class || "(top-level)",
+            line: node.loc&.line
+          }
+        end
+      end
+      
+      def extract_loggy_call_info(args)
+        return [nil] if args.empty?
+        
+        first_arg = args.first
+        # Loggy's log method can be called as:
+        # log(:info, "message")
+        # log("message") - defaults to info
+        if first_arg&.type == :sym && LOG_METHODS.include?(first_arg.children.first)
+          level = first_arg.children.first.to_s
+          [level, *args[1..-1]]
+        else
+          ["info", *args]
+        end
       end
 
       def record_metric_call(node, receiver, method_name, args)

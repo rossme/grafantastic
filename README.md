@@ -120,6 +120,7 @@ In dry-run mode:
 - `logger.info`, `logger.debug`, `logger.warn`, `logger.error`, `logger.fatal`
 - `Rails.logger.*`
 - `@logger.*`
+- `log(...)` in classes that include/extend `Loggy::ClassLogger` or `Loggy::InstanceLogger`
 
 ### Metrics
 
@@ -206,6 +207,41 @@ end
 ```
 
 When `PaymentProcessor` is changed, signals from `BaseProcessor` and `Loggable` are also extracted.
+
+### Loggy Module Support
+
+Diffdash supports the [Loggy](https://github.com/ddollar/loggy) gem's `ClassLogger` and `InstanceLogger` modules:
+
+```ruby
+class PaymentProcessor
+  include Loggy::ClassLogger
+  
+  def process_payment
+    log(:info, "payment_started")
+    log(:error, "payment_failed") if error
+    # Or with default info level:
+    log("payment_completed")
+  end
+end
+
+class OrderService
+  include Loggy::InstanceLogger
+  
+  def create_order
+    log(:info, "order_created")
+  end
+end
+
+class BatchProcessor
+  extend Loggy::ClassLogger
+  
+  def self.process_batch
+    log(:warn, "batch_processing_started")
+  end
+end
+```
+
+The `log(...)` method calls are detected and included in dashboards when the class includes, prepends, or extends `Loggy::ClassLogger` or `Loggy::InstanceLogger`.
 
 ## Dashboard Behavior
 
