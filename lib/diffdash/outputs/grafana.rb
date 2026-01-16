@@ -111,9 +111,10 @@ module Diffdash
       def app_variable
         {
           name: "app",
-          type: "custom",
-          query: "app",
-          current: { text: "app", value: "app" },
+          type: "query",
+          datasource: { type: "loki", uid: "${datasource_loki}" },
+          query: "label_values({app!=\"\"}, app)",
+          refresh: 2,
           includeAll: false,
           multi: false
         }
