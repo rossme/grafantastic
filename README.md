@@ -268,6 +268,46 @@ bundle exec rubocop
 
 # Build gem
 gem build diffdash.gemspec
+
+# Publish to GitHub Packages
+# Replace <github_user_name> with your GitHub username (e.g., rossme)
+gem push --key github \
+  --host https://rubygems.pkg.github.com/<github_user_name> \
+  diffdash-0.1.5.gem
+```
+
+## Testing Locally with Remote Grafana
+
+To stream local logs/metrics to a remote Grafana instance, run Promtail and Prometheus
+alongside your app and then run Diffdash locally.
+
+**Requirements:**
+- Promtail (for logs) and Prometheus (for metrics)
+- `bundle exec diffdash` to generate/upload dashboards
+
+**Promtail (Docker)**
+
+```bash
+docker run -d \
+  --name promtail \
+  -v $(pwd)/log:/host/log \
+  -v $(pwd)/promtail.yml:/etc/promtail/config.yml \
+  grafana/promtail:2.9.0 \
+  -config.file=/etc/promtail/config.yml
+```
+
+**Configuration files**
+
+In the app where Diffdash is installed, keep:
+- `promtail.yml` (Promtail config)
+- `prometheus.yml` (Prometheus config)
+
+These live in the app root and are referenced by the commands above.
+
+**Run Diffdash locally**
+
+```bash
+bundle exec diffdash
 ```
 
 ## License

@@ -101,7 +101,7 @@ module Diffdash
         {
           name: "env",
           type: "custom",
-          query: "production,staging,development",
+          query: "production,staging,development,local",
           current: { text: "production", value: "production" },
           includeAll: false,
           multi: false
