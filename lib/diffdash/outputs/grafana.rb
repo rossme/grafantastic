@@ -68,7 +68,6 @@ module Diffdash
           list: [
             datasource_variable("datasource", "prometheus"),
             datasource_variable("datasource_loki", "loki"),
-            service_variable,
             environment_variable,
             app_variable
           ]
@@ -82,18 +81,6 @@ module Diffdash
           query: query,
           current: {},
           hide: 0
-        }
-      end
-
-      def service_variable
-        {
-          name: "service",
-          type: "query",
-          datasource: { type: "prometheus", uid: "${datasource}" },
-          query: "label_values(up, service)",
-          refresh: 2,
-          includeAll: false,
-          multi: false
         }
       end
 
@@ -127,8 +114,8 @@ module Diffdash
               name: "Deployments",
               datasource: { type: "prometheus", uid: "${datasource}" },
               enable: true,
-              expr: "changes(deploy_timestamp{service=\"$service\"}[5m]) > 0",
-              tagKeys: "service",
+              expr: "changes(deploy_timestamp[5m]) > 0",
+              tagKeys: "app,env",
               titleFormat: "Deploy"
             }
           ]
@@ -214,8 +201,8 @@ module Diffdash
           targets: [
             {
               datasource: { type: "prometheus", uid: "${datasource}" },
-              expr: "sum(rate(#{sanitize_metric_name(signal.name)}[$__rate_interval])) by (service)",
-              legendFormat: "{{service}}",
+              expr: "sum(rate(#{sanitize_metric_name(signal.name)}[$__rate_interval]))",
+              legendFormat: "",
               refId: "A"
             }
           ],
@@ -245,7 +232,7 @@ module Diffdash
           targets: [
             {
               datasource: { type: "prometheus", uid: "${datasource}" },
-              expr: "#{sanitize_metric_name(signal.name)}{service=\"$service\", env=\"$env\"}",
+              expr: "#{sanitize_metric_name(signal.name)}{env=~\"$env\", app=~\"$app\"}",
               legendFormat: "{{instance}}",
               refId: "A"
             }
@@ -287,8 +274,8 @@ module Diffdash
             targets: [
               {
                 datasource: { type: "prometheus", uid: "${datasource}" },
-                expr: "histogram_quantile(#{pct[:p]}, sum(rate(#{sanitize_metric_name(signal.name)}_bucket[$__rate_interval])) by (le, service))",
-                legendFormat: "{{service}} #{pct[:label]}",
+                expr: "histogram_quantile(#{pct[:p]}, sum(rate(#{sanitize_metric_name(signal.name)}_bucket[$__rate_interval])) by (le))",
+                legendFormat: "#{pct[:label]}",
                 refId: "A"
               }
             ],
@@ -328,7 +315,7 @@ module Diffdash
       def build_log_query(signal)
         event_filter = signal.name ? " |= `#{signal.name}`" : ""
         # Keep templating filters wired to the dashboard variables.
-        "{service=~\"$service\", env=~\"$env\", app=~\"$app\"}#{event_filter}"
+        "{env=~\"$env\", app=~\"$app\"}#{event_filter}"
       end
 
       def sanitize_metric_name(name)

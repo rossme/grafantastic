@@ -280,7 +280,6 @@ RSpec.describe Diffdash::Renderers::Grafana do
         variable_names = variables.map { |v| v[:name] }
         expect(variable_names).to include("datasource")
         expect(variable_names).to include("datasource_loki")
-        expect(variable_names).to include("service")
         expect(variable_names).to include("env")
         expect(variable_names).to include("app")
       end
