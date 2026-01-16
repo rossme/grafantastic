@@ -307,7 +307,9 @@ module Diffdash
 
       def build_log_query(signal)
         event_filter = signal.name ? " |= `#{signal.name}`" : ""
-        "{service=\"$service\", env=\"$env\"}#{event_filter}"
+        # Include common label patterns for better compatibility
+        # Users can customize by setting template variables
+        "{service=~\".+\"}#{event_filter}"
       end
 
       def sanitize_metric_name(name)
