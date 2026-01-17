@@ -146,7 +146,9 @@ module Diffdash
         when Outputs::Json then :json
         when Outputs::Kibana then :kibana
         else
-          adapter.class.name.split("::").last.downcase.to_sym
+          class_name = adapter.class.name
+          return :adapter if class_name.nil? || class_name.empty?
+          class_name.split("::").last.downcase.to_sym
         end
       end
 
