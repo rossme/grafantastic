@@ -3,7 +3,6 @@
 module Diffdash
   module Signal
     # Base class for all observability signals
-    # Represents a detected signal in source code with no Grafana-specific knowledge
     class Base
       attr_reader :name, :type, :source_file, :labels, :confidence, :metadata,
                   :defining_class, :inheritance_depth

@@ -68,7 +68,12 @@ module Diffdash
 
         # Print Grafana JSON if available (preserve existing behavior)
         grafana_result = results[:grafana]
-        puts JSON.pretty_generate(grafana_result[:payload]) if grafana_result
+        json_result = results[:json]
+        if grafana_result
+          puts JSON.pretty_generate(grafana_result[:payload])
+        elsif json_result
+          puts JSON.pretty_generate(json_result[:payload])
+        end
 
         # Summaries
         print_signal_summary(bundle, url: grafana_result&.dig(:url))
@@ -103,14 +108,23 @@ module Diffdash
       def build_outputs(change_set)
         title = Formatters::DashboardTitle.sanitize(change_set.branch_name)
 
-        [
-          Outputs::Grafana.new(
-            title: title,
-            folder_id: @config.grafana_folder_id,
-            dry_run: @dry_run,
-            verbose: @verbose
-          )
-        ]
+        @config.outputs.map do |output|
+          case output
+          when :grafana
+            Outputs::Grafana.new(
+              title: title,
+              folder_id: @config.grafana_folder_id,
+              dry_run: @dry_run,
+              verbose: @verbose
+            )
+          when :json
+            Outputs::Json.new
+          when :kibana
+            Outputs::Kibana.new
+          else
+            raise ArgumentError, "Unknown output '#{output}'. Valid outputs: grafana, json, kibana."
+          end
+        end
       end
 
       def run_outputs(outputs, bundle)
@@ -175,7 +189,7 @@ module Diffdash
             puts "  ID: #{folder['id'].to_s.ljust(6)} Title: #{folder['title']}"
           end
           puts ""
-          puts "Set GRAFANA_FOLDER_ID in your .env file to use a specific folder"
+          puts "Set DIFFDASH_GRAFANA_FOLDER_ID in your .env file to use a specific folder"
         end
         0
       rescue Clients::Grafana::ConnectionError => e
@@ -269,19 +283,20 @@ module Diffdash
             --help       Show this help message
 
           Environment Variables (set in .env file):
-            GRAFANA_URL          Grafana instance URL (required)
-            GRAFANA_TOKEN        Grafana API token (required)
-            GRAFANA_FOLDER_ID    Target folder ID (optional)
-            DIFFDASH_DRY_RUN Set to 'true' to force dry-run mode
+            DIFFDASH_GRAFANA_URL        Grafana instance URL (required)
+            DIFFDASH_GRAFANA_TOKEN      Grafana API token (required)
+            DIFFDASH_GRAFANA_FOLDER_ID  Target folder ID (optional)
+            DIFFDASH_OUTPUTS            Comma-separated outputs (default: grafana)
+            DIFFDASH_DRY_RUN            Set to 'true' to force dry-run mode
 
           Output:
-            Prints valid Grafana dashboard JSON to STDOUT.
+            Prints output JSON to STDOUT (Grafana first if configured).
             Errors and progress info go to STDERR.
 
           Example .env file:
-            GRAFANA_URL=https://myorg.grafana.net
-            GRAFANA_TOKEN=glsa_xxxxxxxxxxxx
-            GRAFANA_FOLDER_ID=42
+            DIFFDASH_GRAFANA_URL=https://myorg.grafana.net
+            DIFFDASH_GRAFANA_TOKEN=glsa_xxxxxxxxxxxx
+            DIFFDASH_GRAFANA_FOLDER_ID=42
         HELP
       end
     end

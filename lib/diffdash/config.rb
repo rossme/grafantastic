@@ -18,15 +18,26 @@ module Diffdash
     end
 
     def grafana_url
-      ENV["GRAFANA_URL"]
+      ENV["DIFFDASH_GRAFANA_URL"] || ENV["GRAFANA_URL"]
     end
 
     def grafana_token
-      ENV["GRAFANA_TOKEN"]
+      ENV["DIFFDASH_GRAFANA_TOKEN"] || ENV["GRAFANA_TOKEN"]
     end
 
     def grafana_folder_id
-      ENV["GRAFANA_FOLDER_ID"]
+      ENV["DIFFDASH_GRAFANA_FOLDER_ID"] || ENV["GRAFANA_FOLDER_ID"]
+    end
+
+    def outputs
+      raw = ENV["DIFFDASH_OUTPUTS"].to_s
+      return [:grafana] if raw.strip.empty?
+
+      raw.split(",")
+         .map(&:strip)
+         .reject(&:empty?)
+         .map(&:downcase)
+         .map(&:to_sym)
     end
 
     def dry_run?

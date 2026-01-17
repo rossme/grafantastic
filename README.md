@@ -24,9 +24,10 @@ gem install diffdash-*.gem
 ### 1. Add these to your application's `.env` (dotenv) file
 
 ```bash
-GRAFANA_URL=https://myorg.grafana.net
-GRAFANA_TOKEN=glsa_xxxxxxxxxxxx
-GRAFANA_FOLDER_ID=42  # optional
+DIFFDASH_GRAFANA_URL=https://myorg.grafana.net
+DIFFDASH_GRAFANA_TOKEN=glsa_xxxxxxxxxxxx
+DIFFDASH_GRAFANA_FOLDER_ID=42  # optional
+DIFFDASH_OUTPUTS=grafana,json
 ```
 
 ### 2. Find your folder ID (optional)
@@ -43,7 +44,7 @@ Available Grafana folders:
   ID: 42     Title: PR Dashboards
   ID: 103    Title: Production
 
-Set GRAFANA_FOLDER_ID in your .env file to use a specific folder
+Set DIFFDASH_GRAFANA_FOLDER_ID in your .env file to use a specific folder
 ```
 
 ### 3. Generate Dashboard
@@ -77,10 +78,13 @@ Set these in a `.env` file in your project root:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `GRAFANA_URL` | Yes | Grafana instance URL (e.g., `https://myorg.grafana.net`) |
-| `GRAFANA_TOKEN` | Yes | Grafana API token (Service Account token with Editor role) |
-| `GRAFANA_FOLDER_ID` | No | Target folder ID for dashboards |
+| `DIFFDASH_GRAFANA_URL` | Yes | Grafana instance URL (e.g., `https://myorg.grafana.net`) |
+| `DIFFDASH_GRAFANA_TOKEN` | Yes | Grafana API token (Service Account token with Editor role) |
+| `DIFFDASH_GRAFANA_FOLDER_ID` | No | Target folder ID for dashboards |
+| `DIFFDASH_OUTPUTS` | No | Comma-separated outputs (default: `grafana`) |
 | `DIFFDASH_DRY_RUN` | No | Set to `true` to force dry-run mode |
+
+Legacy `GRAFANA_*` env vars are still supported as fallbacks for now.
 
 ## Output
 
@@ -327,6 +331,12 @@ identifier to keep queries stable.
 Grafana’s Schema v2 is still experimental, so Diffdash currently validates
 against the **v1 dashboard JSON model** (the format used by the Grafana API).
 We enforce this via a golden‑file contract test to keep output stable.
+
+To regenerate the fixture after intentional changes:
+
+```bash
+bin/regenerate_grafana_fixture
+```
 
 Reference:
 - Grafana v1 dashboard JSON model: https://grafana.com/docs/grafana/latest/visualizations/dashboards/build-dashboards/view-dashboard-json-model/#dashboard-json

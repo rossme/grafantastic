@@ -21,11 +21,11 @@ module Diffdash
       attr_reader :url
 
       # Initialize Grafana API client
-      # @param url [String, nil] Grafana base URL (falls back to ENV['GRAFANA_URL'])
-      # @param token [String, nil] API token (falls back to ENV['GRAFANA_TOKEN'])
+      # @param url [String, nil] Grafana base URL (falls back to ENV['DIFFDASH_GRAFANA_URL'])
+      # @param token [String, nil] API token (falls back to ENV['DIFFDASH_GRAFANA_TOKEN'])
       def initialize(url: nil, token: nil)
-        @url = url || ENV.fetch("GRAFANA_URL") { raise Error, "GRAFANA_URL not set" }
-        @token = token || ENV.fetch("GRAFANA_TOKEN") { raise Error, "GRAFANA_TOKEN not set" }
+        @url = url || ENV["DIFFDASH_GRAFANA_URL"] || ENV.fetch("GRAFANA_URL") { raise Error, "DIFFDASH_GRAFANA_URL not set" }
+        @token = token || ENV["DIFFDASH_GRAFANA_TOKEN"] || ENV.fetch("GRAFANA_TOKEN") { raise Error, "DIFFDASH_GRAFANA_TOKEN not set" }
       end
 
       # Validates connection to Grafana by hitting the health endpoint
