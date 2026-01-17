@@ -91,6 +91,22 @@ RSpec.describe Diffdash::Renderers::Grafana do
 
         expect(panel[:targets].first[:datasource][:type]).to eq("loki")
       end
+
+      it "uses exact literal matching for log messages" do
+        log_signal = Diffdash::Signal::Log.new(
+          name: "Hello from Grape API!",
+          source_file: "/app/services/payment.rb",
+          defining_class: "PaymentService",
+          inheritance_depth: 0,
+          metadata: { level: "info", line: 42 }
+        )
+        renderer = described_class.new(signals: [log_signal], title: "Test Dashboard", folder_id: 123)
+
+        result = renderer.render
+        expr = result[:dashboard][:panels].first[:targets].first[:expr]
+
+        expect(expr).to include("|= \"Hello from Grape API!\"")
+      end
     end
 
     context "with counter signals" do

@@ -310,6 +310,18 @@ These live in the app root and are referenced by the commands above.
 bundle exec diffdash
 ```
 
+## Log Matching Notes
+
+Diffdash builds Loki queries from log messages. For **plain string or symbol**
+messages, it uses the exact literal in the query:
+
+```text
+{env=~"$env", app=~"$app"} |= "Hello from Grape API!"
+```
+
+For **interpolated or dynamic strings**, Diffdash falls back to a sanitized
+identifier to keep queries stable.
+
 ## License
 
 MIT

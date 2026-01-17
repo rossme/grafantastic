@@ -272,14 +272,13 @@ module Diffdash
         first_arg = args.first
         case first_arg&.type
         when :str
-          # Literal string - derive stable identifier
-          message = first_arg.children.first
-          derive_event_name(message)
+          # Literal string - use raw message for exact matching
+          first_arg.children.first
         when :sym
           # Symbol - use directly
           first_arg.children.first.to_s
         when :dstr
-          # Interpolated string - use first static part
+          # Interpolated string - use a stable derived identifier
           static_parts = first_arg.children.select { |c| c.type == :str }
           message = static_parts.map { |s| s.children.first }.join
           derive_event_name(message)

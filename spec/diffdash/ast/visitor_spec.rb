@@ -136,7 +136,7 @@ RSpec.describe Diffdash::AST::Visitor do
         expect(visitor.log_calls.first[:event_name]).to eq("payment_processed")
       end
 
-      it "derives event name from message string" do
+      it "uses raw event name from message string" do
         source = <<~RUBY
           class Foo
             def bar
@@ -146,7 +146,20 @@ RSpec.describe Diffdash::AST::Visitor do
         RUBY
         parse_and_visit(source)
 
-        expect(visitor.log_calls.first[:event_name]).to eq("processing_payment_for_user")
+        expect(visitor.log_calls.first[:event_name]).to eq("Processing payment for user")
+      end
+
+      it "derives event name from interpolated string" do
+        source = <<~'RUBY'
+          class Foo
+            def bar(user_id)
+              logger.info "Processed user #{user_id}"
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.log_calls.first[:event_name]).to eq("processed_user")
       end
 
       it "records defining class" do
@@ -205,7 +218,7 @@ RSpec.describe Diffdash::AST::Visitor do
 
         expect(visitor.log_calls.size).to eq(1)
         expect(visitor.log_calls.first[:level]).to eq("info")
-        expect(visitor.log_calls.first[:event_name]).to eq("message_via_add")
+        expect(visitor.log_calls.first[:event_name]).to eq("message via add")
       end
 
       it "detects logger.log with symbol severity" do
@@ -220,7 +233,7 @@ RSpec.describe Diffdash::AST::Visitor do
 
         expect(visitor.log_calls.size).to eq(1)
         expect(visitor.log_calls.first[:level]).to eq("error")
-        expect(visitor.log_calls.first[:event_name]).to eq("message_via_log")
+        expect(visitor.log_calls.first[:event_name]).to eq("message via log")
       end
 
       it "detects logger.add with Logger constant severity" do

@@ -313,9 +313,14 @@ module Diffdash
       # Helper methods for rendering
 
       def build_log_query(signal)
-        event_filter = signal.name ? " |= `#{signal.name}`" : ""
         # Keep templating filters wired to the dashboard variables.
+        # Use exact literal matching for static log messages.
+        event_filter = signal.name ? " |= \"#{escape_log_value(signal.name)}\"" : ""
         "{env=~\"$env\", app=~\"$app\"}#{event_filter}"
+      end
+
+      def escape_log_value(value)
+        value.to_s.gsub("\\", "\\\\").gsub("\"", "\\\"")
       end
 
       def sanitize_metric_name(name)
