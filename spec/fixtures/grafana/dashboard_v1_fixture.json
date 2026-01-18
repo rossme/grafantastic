@@ -3,7 +3,6 @@
     "id": null,
     "uid": "dd13b41b886c",
     "title": "contract-dashboard",
-    "description": "Manual run at 2026-01-18T00:00:00Z (not from deploy)",
     "tags": [
       "auto-pr",
       "diffdash"
@@ -113,6 +112,17 @@
           "expr": "changes(deploy_timestamp{branch=\"contract-dashboard\"}[5m]) > 0",
           "tagKeys": "app,env,branch",
           "titleFormat": "PR Deploy"
+        },
+        {
+          "name": "Manual Run",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "enable": false,
+          "expr": "manual_run_timestamp{generated_at=\"2026-01-18T00:00:00Z\", source=\"manual\"}",
+          "tagKeys": "source,generated_at",
+          "titleFormat": "Manual run at 2026-01-18T00:00:00Z (not from deploy)"
         }
       ]
     }

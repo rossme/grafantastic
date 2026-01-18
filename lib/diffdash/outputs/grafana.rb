@@ -38,7 +38,7 @@ module Diffdash
       private
 
       def build_dashboard(signal_bundle)
-        dashboard = {
+        {
           id: nil,
           uid: generate_uid,
           title: @title,
@@ -55,10 +55,6 @@ module Diffdash
           panels: build_panels(signal_bundle),
           annotations: build_annotations(signal_bundle)
         }
-
-        manual_description = manual_run_description
-        dashboard[:description] = manual_description if manual_description
-        dashboard
       end
 
       def generate_uid
@@ -115,6 +111,8 @@ module Diffdash
         annotations = [deployment_annotation]
         pr_annotation = pr_deployment_annotation(signal_bundle)
         annotations << pr_annotation if pr_annotation
+        manual_annotation = manual_run_annotation
+        annotations << manual_annotation if manual_annotation
 
         { list: annotations }
       end
@@ -324,12 +322,23 @@ module Diffdash
         value.to_s.gsub("\\", "\\\\").gsub("\"", "\\\"")
       end
 
-      def manual_run_description
+      def manual_run_annotation
         return nil if ci_context?
 
+        timestamp = manual_run_timestamp
+        {
+          name: "Manual Run",
+          datasource: { type: "prometheus", uid: "${datasource}" },
+          enable: false,
+          expr: "manual_run_timestamp{generated_at=\"#{escape_promql_label(timestamp)}\", source=\"manual\"}",
+          tagKeys: "source,generated_at",
+          titleFormat: "Manual run at #{timestamp} (not from deploy)"
+        }
+      end
+
+      def manual_run_timestamp
         require "time"
-        timestamp = Time.now.utc.iso8601
-        "Manual run at #{timestamp} (not from deploy)"
+        Time.now.utc.iso8601
       end
 
       def ci_context?

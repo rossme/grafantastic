@@ -345,13 +345,13 @@ RSpec.describe Diffdash::Outputs::Grafana do
         result = renderer.render(bundle)
         annotations = result[:dashboard][:annotations][:list]
 
-        expect(annotations.size).to eq(2)
-        expect(annotations.first[:name]).to eq("Deployments")
-        expect(annotations.last[:name]).to eq("PR Deployments")
-        expect(annotations.last[:expr]).to eq("changes(deploy_timestamp{branch=\"feature/pr-123\"}[5m]) > 0")
+        annotation_names = annotations.map { |annotation| annotation[:name] }
+        expect(annotation_names).to include("Deployments", "PR Deployments")
+        pr_annotation = annotations.find { |annotation| annotation[:name] == "PR Deployments" }
+        expect(pr_annotation[:expr]).to eq("changes(deploy_timestamp{branch=\"feature/pr-123\"}[5m]) > 0")
       end
 
-      it "adds manual run description when not in CI" do
+      it "adds manual run annotation when not in CI" do
         allow(Time).to receive(:now).and_return(Time.utc(2026, 1, 18, 0, 0, 0))
 
         with_env(
@@ -363,14 +363,20 @@ RSpec.describe Diffdash::Outputs::Grafana do
           "JENKINS_URL" => nil
         ) do
           result = renderer.render(bundle)
-          expect(result[:dashboard][:description]).to eq("Manual run at 2026-01-18T00:00:00Z (not from deploy)")
+          annotations = result[:dashboard][:annotations][:list]
+          manual = annotations.find { |annotation| annotation[:name] == "Manual Run" }
+          expect(manual[:enable]).to be false
+          expect(manual[:expr]).to eq("manual_run_timestamp{generated_at=\"2026-01-18T00:00:00Z\", source=\"manual\"}")
+          expect(manual[:titleFormat]).to eq("Manual run at 2026-01-18T00:00:00Z (not from deploy)")
         end
       end
 
-      it "omits manual run description in CI" do
+      it "omits manual run annotation in CI" do
         with_env("CI" => "true") do
           result = renderer.render(bundle)
-          expect(result[:dashboard]).not_to have_key(:description)
+          annotations = result[:dashboard][:annotations][:list]
+          annotation_names = annotations.map { |annotation| annotation[:name] }
+          expect(annotation_names).not_to include("Manual Run")
         end
       end
 
