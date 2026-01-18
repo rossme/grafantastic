@@ -283,11 +283,12 @@ module Diffdash
             --help       Show this help message
 
           Environment Variables (set in .env file):
-            DIFFDASH_GRAFANA_URL        Grafana instance URL (required)
-            DIFFDASH_GRAFANA_TOKEN      Grafana API token (required)
-            DIFFDASH_GRAFANA_FOLDER_ID  Target folder ID (optional)
-            DIFFDASH_OUTPUTS            Comma-separated outputs (default: grafana)
-            DIFFDASH_DRY_RUN            Set to 'true' to force dry-run mode
+            DIFFDASH_GRAFANA_URL               Grafana instance URL (required)
+            DIFFDASH_GRAFANA_TOKEN             Grafana API token (required)
+            DIFFDASH_GRAFANA_FOLDER_ID         Target folder ID (optional)
+            DIFFDASH_OUTPUTS                   Comma-separated outputs (default: grafana)
+            DIFFDASH_DRY_RUN                   Set to 'true' to force dry-run mode
+            DIFFDASH_PR_DEPLOY_ANNOTATION_EXPR PromQL for PR deployment annotation
 
           Output:
             Prints output JSON to STDOUT (Grafana first if configured).

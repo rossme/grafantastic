@@ -29,7 +29,10 @@ RSpec.describe "Grafana v1 dashboard contract" do
       logs: [signal],
       metrics: [],
       traces: [],
-      metadata: { time_range: { from: "now-1h", to: "now" } }
+      metadata: {
+        time_range: { from: "now-1h", to: "now" },
+        change_set: { branch_name: "contract-dashboard" }
+      }
     )
     renderer = Diffdash::Outputs::Grafana.new(
       title: "contract-dashboard",

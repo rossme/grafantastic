@@ -4,7 +4,14 @@ RSpec.describe Diffdash::Outputs::Grafana do
   describe "#render" do
     context "with empty signals" do
       subject(:renderer) { described_class.new(title: "Empty Dashboard", folder_id: nil) }
-      let(:bundle) { Diffdash::Engine::SignalBundle.new(metadata: { time_range: { from: "now-1h", to: "now" } }) }
+      let(:bundle) do
+        Diffdash::Engine::SignalBundle.new(
+          metadata: {
+            time_range: { from: "now-1h", to: "now" },
+            change_set: { branch_name: "feature/pr-123" }
+          }
+        )
+      end
 
       it "returns valid Grafana JSON structure" do
         result = renderer.render(bundle)
@@ -321,8 +328,10 @@ RSpec.describe Diffdash::Outputs::Grafana do
         result = renderer.render(bundle)
         annotations = result[:dashboard][:annotations][:list]
 
-        expect(annotations.size).to eq(1)
+        expect(annotations.size).to eq(2)
         expect(annotations.first[:name]).to eq("Deployments")
+        expect(annotations.last[:name]).to eq("PR Deployments")
+        expect(annotations.last[:expr]).to eq("changes(deploy_timestamp{branch=\"feature/pr-123\"}[5m]) > 0")
       end
 
       it "sets schema version" do

@@ -101,6 +101,17 @@
           "expr": "changes(deploy_timestamp[5m]) > 0",
           "tagKeys": "app,env",
           "titleFormat": "Deploy"
+        },
+        {
+          "name": "PR Deployments",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "enable": true,
+          "expr": "changes(deploy_timestamp{branch=\"contract-dashboard\"}[5m]) > 0",
+          "tagKeys": "app,env,branch",
+          "titleFormat": "PR Deploy"
         }
       ]
     }

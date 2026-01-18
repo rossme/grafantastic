@@ -83,6 +83,7 @@ Set these in a `.env` file in your project root:
 | `DIFFDASH_GRAFANA_FOLDER_ID` | No | Target folder ID for dashboards |
 | `DIFFDASH_OUTPUTS` | No | Comma-separated outputs (default: `grafana`) |
 | `DIFFDASH_DRY_RUN` | No | Set to `true` to force dry-run mode |
+| `DIFFDASH_PR_DEPLOY_ANNOTATION_EXPR` | No | PromQL expr for PR deployment annotation |
 
 Legacy `GRAFANA_*` env vars are still supported as fallbacks for now.
 

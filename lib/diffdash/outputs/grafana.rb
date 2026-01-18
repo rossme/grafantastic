@@ -53,7 +53,7 @@ module Diffdash
           },
           templating: build_templating,
           panels: build_panels(signal_bundle),
-          annotations: build_annotations
+          annotations: build_annotations(signal_bundle)
         }
       end
 
@@ -107,19 +107,12 @@ module Diffdash
         }
       end
 
-      def build_annotations
-        {
-          list: [
-            {
-              name: "Deployments",
-              datasource: { type: "prometheus", uid: "${datasource}" },
-              enable: true,
-              expr: "changes(deploy_timestamp[5m]) > 0",
-              tagKeys: "app,env",
-              titleFormat: "Deploy"
-            }
-          ]
-        }
+      def build_annotations(signal_bundle)
+        annotations = [deployment_annotation]
+        pr_annotation = pr_deployment_annotation(signal_bundle)
+        annotations << pr_annotation if pr_annotation
+
+        { list: annotations }
       end
 
       def build_panels(signal_bundle)
@@ -323,6 +316,10 @@ module Diffdash
         value.to_s.gsub("\\", "\\\\").gsub("\"", "\\\"")
       end
 
+      def escape_promql_label(value)
+        value.to_s.gsub("\\", "\\\\").gsub("\"", "\\\"")
+      end
+
       def sanitize_metric_name(name)
         name.to_s.gsub(/[^a-zA-Z0-9_:]/, "_")
       end
@@ -337,6 +334,41 @@ module Diffdash
 
       def log_verbose(message)
         warn "[diffdash] #{message}" if @verbose
+      end
+
+      def deployment_annotation
+        {
+          name: "Deployments",
+          datasource: { type: "prometheus", uid: "${datasource}" },
+          enable: true,
+          expr: "changes(deploy_timestamp[5m]) > 0",
+          tagKeys: "app,env",
+          titleFormat: "Deploy"
+        }
+      end
+
+      def pr_deployment_annotation(signal_bundle)
+        expr = pr_deployment_expr(signal_bundle)
+        return nil if expr.nil? || expr.empty?
+
+        {
+          name: "PR Deployments",
+          datasource: { type: "prometheus", uid: "${datasource}" },
+          enable: true,
+          expr: expr,
+          tagKeys: "app,env,branch",
+          titleFormat: "PR Deploy"
+        }
+      end
+
+      def pr_deployment_expr(signal_bundle)
+        override = ENV["DIFFDASH_PR_DEPLOY_ANNOTATION_EXPR"].to_s.strip
+        return override unless override.empty?
+
+        branch = signal_bundle.metadata.dig(:change_set, :branch_name).to_s.strip
+        return nil if branch.empty?
+
+        "changes(deploy_timestamp{branch=\"#{escape_promql_label(branch)}\"}[5m]) > 0"
       end
     end
   end
