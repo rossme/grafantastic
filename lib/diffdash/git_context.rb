@@ -43,8 +43,8 @@ module Diffdash
     end
 
     def branch_exists?(name)
-      run_git("rev-parse", "--verify", name, allow_failure: true)
-      $?.success?
+      output = run_git("rev-parse", "--verify", name, allow_failure: true)
+      !output.strip.empty?
     end
 
     def diff_against_base
@@ -54,10 +54,9 @@ module Diffdash
       end
 
       merge_base = run_git("merge-base", @base_ref, "HEAD", allow_failure: true).strip
-      return [] unless $?.success? && !merge_base.empty?
+      return [] if merge_base.empty?
 
       result = run_git("diff", "--name-only", merge_base, "HEAD", allow_failure: true)
-      return [] unless $?.success?
 
       result.split("\n").reject(&:empty?)
     end
@@ -76,21 +75,18 @@ module Diffdash
       
       # Use three-dot diff to get only the commits in the PR branch
       result = run_git("diff", "--name-only", "origin/#{base_ref}...HEAD", allow_failure: true)
-      return [] unless $?.success?
 
       result.split("\n").reject(&:empty?)
     end
 
     def uncommitted_changes
       result = run_git("diff", "--name-only", "HEAD", allow_failure: true)
-      return [] unless $?.success?
 
       result.split("\n").reject(&:empty?)
     end
 
     def staged_files
       result = run_git("diff", "--name-only", "--cached", allow_failure: true)
-      return [] unless $?.success?
 
       result.split("\n").reject(&:empty?)
     end

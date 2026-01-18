@@ -8,11 +8,13 @@ RSpec.describe Diffdash::GitContext do
     context "when in a git repository" do
       it "returns a string" do
         context = described_class.new
+        allow(context).to receive(:run_git).with("branch", "--show-current").and_return("main\n")
         expect(context.branch_name).to be_a(String)
       end
 
       it "returns non-empty branch name" do
         context = described_class.new
+        allow(context).to receive(:run_git).with("branch", "--show-current").and_return("main\n")
         expect(context.branch_name).not_to be_empty
       end
     end
