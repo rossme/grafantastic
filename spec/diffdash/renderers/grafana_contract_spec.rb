@@ -16,6 +16,16 @@ RSpec.describe "Grafana v1 dashboard contract" do
     end
   end
 
+  def with_env(values)
+    original = ENV.to_hash
+    values.each do |key, value|
+      value.nil? ? ENV.delete(key) : ENV[key] = value
+    end
+    yield
+  ensure
+    ENV.replace(original)
+  end
+
   it "matches the golden dashboard fixture" do
     signal = Diffdash::Engine::SignalQuery.new(
       type: :logs,
@@ -39,9 +49,20 @@ RSpec.describe "Grafana v1 dashboard contract" do
       folder_id: 123
     )
 
-    output = stringify_keys(renderer.render(bundle))
-    fixture = JSON.parse(File.read(fixture_path))
+    allow(Time).to receive(:now).and_return(Time.utc(2026, 1, 18, 0, 0, 0))
 
-    expect(output).to eq(fixture)
+    with_env(
+      "CI" => nil,
+      "GITHUB_ACTIONS" => nil,
+      "GITLAB_CI" => nil,
+      "BUILDKITE" => nil,
+      "CIRCLECI" => nil,
+      "JENKINS_URL" => nil
+    ) do
+      output = stringify_keys(renderer.render(bundle))
+      fixture = JSON.parse(File.read(fixture_path))
+
+      expect(output).to eq(fixture)
+    end
   end
 end

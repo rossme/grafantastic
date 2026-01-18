@@ -1,6 +1,16 @@
 # frozen_string_literal: true
 
 RSpec.describe Diffdash::Outputs::Grafana do
+  def with_env(values)
+    original = ENV.to_hash
+    values.each do |key, value|
+      value.nil? ? ENV.delete(key) : ENV[key] = value
+    end
+    yield
+  ensure
+    ENV.replace(original)
+  end
+
   describe "#render" do
     context "with empty signals" do
       subject(:renderer) { described_class.new(title: "Empty Dashboard", folder_id: nil) }
@@ -339,6 +349,29 @@ RSpec.describe Diffdash::Outputs::Grafana do
         expect(annotations.first[:name]).to eq("Deployments")
         expect(annotations.last[:name]).to eq("PR Deployments")
         expect(annotations.last[:expr]).to eq("changes(deploy_timestamp{branch=\"feature/pr-123\"}[5m]) > 0")
+      end
+
+      it "adds manual run description when not in CI" do
+        allow(Time).to receive(:now).and_return(Time.utc(2026, 1, 18, 0, 0, 0))
+
+        with_env(
+          "CI" => nil,
+          "GITHUB_ACTIONS" => nil,
+          "GITLAB_CI" => nil,
+          "BUILDKITE" => nil,
+          "CIRCLECI" => nil,
+          "JENKINS_URL" => nil
+        ) do
+          result = renderer.render(bundle)
+          expect(result[:dashboard][:description]).to eq("Manual run at 2026-01-18T00:00:00Z (not from deploy)")
+        end
+      end
+
+      it "omits manual run description in CI" do
+        with_env("CI" => "true") do
+          result = renderer.render(bundle)
+          expect(result[:dashboard]).not_to have_key(:description)
+        end
       end
 
       it "sets schema version" do

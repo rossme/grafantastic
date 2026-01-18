@@ -38,7 +38,7 @@ module Diffdash
       private
 
       def build_dashboard(signal_bundle)
-        {
+        dashboard = {
           id: nil,
           uid: generate_uid,
           title: @title,
@@ -55,6 +55,10 @@ module Diffdash
           panels: build_panels(signal_bundle),
           annotations: build_annotations(signal_bundle)
         }
+
+        manual_description = manual_run_description
+        dashboard[:description] = manual_description if manual_description
+        dashboard
       end
 
       def generate_uid
@@ -318,6 +322,25 @@ module Diffdash
 
       def escape_promql_label(value)
         value.to_s.gsub("\\", "\\\\").gsub("\"", "\\\"")
+      end
+
+      def manual_run_description
+        return nil if ci_context?
+
+        require "time"
+        timestamp = Time.now.utc.iso8601
+        "Manual run at #{timestamp} (not from deploy)"
+      end
+
+      def ci_context?
+        ci_flag = ENV["CI"].to_s.strip.downcase
+        return true if %w[true 1 yes].include?(ci_flag)
+        return true if ENV["GITHUB_ACTIONS"] == "true"
+        return true if ENV["GITLAB_CI"] == "true"
+        return true if ENV["BUILDKITE"] == "true"
+        return true if ENV["CIRCLECI"] == "true"
+
+        ENV["JENKINS_URL"].to_s.strip != ""
       end
 
       def sanitize_metric_name(name)

@@ -3,6 +3,7 @@
     "id": null,
     "uid": "dd13b41b886c",
     "title": "contract-dashboard",
+    "description": "Manual run at 2026-01-18T00:00:00Z (not from deploy)",
     "tags": [
       "auto-pr",
       "diffdash"
