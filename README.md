@@ -286,6 +286,9 @@ gem push --key github \
 To stream local logs/metrics to a remote Grafana instance, run Promtail and Prometheus
 alongside your app and then run Diffdash locally.
 
+For a dedicated sandbox app that emits logs/metrics and runs Diffdash in CI,
+see [diffdash-test-app](https://github.com/rossme/diffdash-test-app).
+
 **Requirements:**
 - Promtail (for logs) and Prometheus (for metrics)
 - `bundle exec diffdash` to generate/upload dashboards
