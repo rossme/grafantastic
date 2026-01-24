@@ -96,18 +96,41 @@ module Diffdash
       end
 
       def app_variable
+        # Infer app name from Git repo or allow override
+        default_app = infer_app_name
+        
         {
           name: "app",
           type: "query",
           datasource: { type: "loki", uid: "${datasource_loki}" },
           query: "label_values({app!=\"\"}, app)",
           refresh: 1,
-          includeAll: false,
+          includeAll: true,
           multi: false,
-          current: {},
+          current: {
+            text: default_app,
+            value: default_app
+          },
           options: [],
           sort: 1
         }
+      end
+
+      def infer_app_name
+        # Priority: ENV var > Git repo name > wildcard
+        return ENV["DIFFDASH_APP_NAME"] if ENV["DIFFDASH_APP_NAME"]
+
+        # Try to get repo name from git remote
+        begin
+          remote_url = `git config --get remote.origin.url`.strip
+          if remote_url.match(%r{[:/]([^/]+?)(?:\.git)?$})
+            return $1
+          end
+        rescue
+          # Fall through if git command fails
+        end
+
+        "*" # Wildcard fallback
       end
 
       def build_annotations(signal_bundle)
