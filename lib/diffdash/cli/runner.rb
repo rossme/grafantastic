@@ -56,6 +56,7 @@ module Diffdash
         engine = Engine::Engine.new(config: @config)
         bundle = engine.run(change_set: change_set)
         @dynamic_metrics = bundle.metadata[:dynamic_metrics] || []
+        @limit_warnings = bundle.metadata[:limit_warnings] || []
         log_verbose("Total signals extracted: #{bundle.logs.size + bundle.metrics.size}")
 
         if bundle.empty?
@@ -81,12 +82,10 @@ module Diffdash
         grafana_failed = errors.any? { |e| e[:adapter] == :grafana }
         print_signal_summary(bundle, url: grafana_result&.dig(:url), grafana_failed: grafana_failed)
 
+        warn_limit_warnings if @limit_warnings.any?
         warn_output_errors(errors) if errors.any?
 
         errors.size == outputs.size ? 1 : 0
-      rescue LimitExceededError => e
-        warn "ERROR: #{e.message}"
-        1
       rescue GitContextError => e
         warn "ERROR: #{e.message}"
         1
@@ -171,6 +170,15 @@ module Diffdash
           return :adapter if class_name.nil? || class_name.empty?
           class_name.split("::").last.downcase.to_sym
         end
+      end
+
+      def warn_limit_warnings
+        warn ""
+        warn "[diffdash] ⚠️  Some signals were excluded:"
+        @limit_warnings.each do |warning|
+          warn "  • #{warning}"
+        end
+        warn ""
       end
 
       def warn_output_errors(errors)

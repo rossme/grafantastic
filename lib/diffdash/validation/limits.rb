@@ -3,43 +3,81 @@
 module Diffdash
   module Validation
     class Limits
+      attr_reader :warnings
+
       def initialize(config)
         @config = config
+        @warnings = []
       end
 
-      def validate!(signals)
+      def truncate_and_validate(signals)
         logs = signals.select(&:log?)
         metrics = signals.select(&:metric?)
         events = signals.select(&:event?)
 
-        check_limit!(:logs, logs, @config.max_logs)
-        check_limit!(:metrics, metrics, @config.max_metrics)
-        check_limit!(:events, events, @config.max_events)
+        # Truncate each type if needed
+        logs = truncate_signals(:logs, logs, @config.max_logs)
+        metrics = truncate_signals(:metrics, metrics, @config.max_metrics)
+        events = truncate_signals(:events, events, @config.max_events)
 
-        total_panels = calculate_panel_count(logs, metrics, events)
-        check_panel_limit!(total_panels, logs, metrics, events)
+        # Check panel limit and truncate further if needed
+        truncated = truncate_by_panel_limit(logs, metrics, events)
+
+        truncated[:logs] + truncated[:metrics] + truncated[:events]
       end
 
       private
 
-      def check_limit!(type, signals, limit)
-        return if signals.size <= limit
+      def truncate_signals(type, signals, limit)
+        return signals if signals.size <= limit
 
-        top_contributor = find_top_contributor(signals)
+        excluded_count = signals.size - limit
+        @warnings << "#{excluded_count} #{type} not added to dashboard (limit: #{limit})"
 
-        raise LimitExceededError, format_error(type, signals.size, limit, top_contributor)
+        signals.take(limit)
       end
 
-      def check_panel_limit!(count, logs, metrics, events)
-        return if count <= @config.max_panels
+      def truncate_by_panel_limit(logs, metrics, events)
+        total_panels = calculate_panel_count(logs, metrics, events)
+        return { logs: logs, metrics: metrics, events: events } if total_panels <= @config.max_panels
 
-        all_signals = logs + metrics + events
-        top_contributor = find_top_contributor(all_signals)
+        # Need to reduce panels - prioritize by removing least critical signals
+        result = { logs: logs.dup, metrics: metrics.dup, events: events.dup }
+        panels_to_remove = total_panels - @config.max_panels
 
-        raise LimitExceededError,
-          "Panel limit exceeded: #{count} panels would be generated (max: #{@config.max_panels}). " \
-          "Breakdown: #{logs.size} logs, #{metrics.size} metrics, #{events.size} events. " \
-          "Top contributor: #{top_contributor}"
+        # Remove logs first (easiest to reduce)
+        while panels_to_remove > 0 && result[:logs].any?
+          result[:logs].pop
+          panels_to_remove -= 1
+        end
+
+        # Then metrics (but histograms cost 3 panels each)
+        while panels_to_remove > 0 && result[:metrics].any?
+          removed = result[:metrics].pop
+          panel_cost = removed.metadata[:metric_type] == :histogram ? 3 : 1
+          panels_to_remove -= panel_cost
+        end
+
+        # Finally events if still over
+        while panels_to_remove > 0 && result[:events].any?
+          result[:events].pop
+          panels_to_remove -= 1
+        end
+
+        # Calculate what was excluded
+        excluded_logs = logs.size - result[:logs].size
+        excluded_metrics = metrics.size - result[:metrics].size
+        excluded_events = events.size - result[:events].size
+
+        if excluded_logs > 0 || excluded_metrics > 0 || excluded_events > 0
+          parts = []
+          parts << "#{excluded_logs} logs" if excluded_logs > 0
+          parts << "#{excluded_metrics} metrics" if excluded_metrics > 0
+          parts << "#{excluded_events} events" if excluded_events > 0
+          @warnings << "#{parts.join(", ")} not added to dashboard (panel limit: #{@config.max_panels})"
+        end
+
+        result
       end
 
       def calculate_panel_count(logs, metrics, events)

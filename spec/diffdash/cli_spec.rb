@@ -149,13 +149,13 @@ RSpec.describe Diffdash::CLI::Runner do
         File.delete(noisy_file) if File.exist?(noisy_file)
       end
 
-      it "returns exit code 1" do
+      it "returns exit code 0 (dashboard still created)" do
         result = silence_stderr { described_class.run(["--dry-run"]) }
-        expect(result).to eq(1)
+        expect(result).to eq(0)
       end
 
-      it "outputs error to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/ERROR:.*limit exceeded/i).to_stderr
+      it "outputs warning about excluded signals" do
+        expect { described_class.run(["--dry-run"]) }.to output(/Some signals were excluded/i).to_stderr
       end
     end
 

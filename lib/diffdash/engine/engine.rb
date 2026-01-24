@@ -7,19 +7,23 @@ module Diffdash
     class Engine
       DEFAULT_TIME_RANGE = { from: "now-1h", to: "now" }.freeze
 
-      attr_reader :dynamic_metrics
+      attr_reader :dynamic_metrics, :limit_warnings
 
       def initialize(config:)
         @config = config
         @collector = Services::SignalCollector.new
         @dynamic_metrics = []
+        @limit_warnings = []
       end
 
       def run(change_set: ChangeSet.from_git, time_range: DEFAULT_TIME_RANGE)
         signals = @collector.collect(change_set.filtered_files)
         @dynamic_metrics = @collector.dynamic_metrics
 
-        validate_limits!(signals)
+        # Truncate signals if limits exceeded and collect warnings
+        validator = Validation::Limits.new(@config)
+        signals = validator.truncate_and_validate(signals)
+        @limit_warnings = validator.warnings
 
         bundle = SignalBundle.new(
           logs: build_queries(signals, :logs, time_range),
@@ -28,7 +32,8 @@ module Diffdash
           metadata: {
             change_set: change_set.to_h,
             time_range: time_range,
-            dynamic_metrics: @dynamic_metrics
+            dynamic_metrics: @dynamic_metrics,
+            limit_warnings: @limit_warnings
           }
         )
 
@@ -42,11 +47,6 @@ module Diffdash
           query = Signal.from_domain(signal, time_range: time_range)
           query if query&.type == type
         end
-      end
-
-      def validate_limits!(signals)
-        validator = Validation::Limits.new(@config)
-        validator.validate!(signals)
       end
     end
   end

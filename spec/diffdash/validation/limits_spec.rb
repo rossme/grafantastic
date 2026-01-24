@@ -27,120 +27,118 @@ RSpec.describe Diffdash::Validation::Limits do
     count.times.map { |i| create_signal(type: :event, name: "event_#{i}") }
   end
 
-  describe "#validate!" do
+  describe "#truncate_and_validate" do
     context "when within limits" do
-      it "does not raise for signals within all limits" do
-        # Stay within panel limit: 5 logs + 5 metrics = 10 panels (under 12)
+      it "returns all signals when within limits" do
         signals = create_logs(5) + create_metrics(5)
 
-        expect { validator.validate!(signals) }.not_to raise_error
+        result = validator.truncate_and_validate(signals)
+
+        expect(result.size).to eq(10)
+        expect(validator.warnings).to be_empty
       end
 
-      it "does not raise for empty signals" do
-        expect { validator.validate!([]) }.not_to raise_error
-      end
+      it "handles empty signals" do
+        result = validator.truncate_and_validate([])
 
-      it "does not raise at exactly max limits" do
-        signals = create_logs(10) + create_metrics(10) + create_events(5)
-
-        # This will exceed panel limit (10 + 10 + 5 = 25 panels > 12)
-        # But if we have fewer, it should pass
-        signals = create_logs(5) + create_metrics(5)
-
-        expect { validator.validate!(signals) }.not_to raise_error
+        expect(result).to be_empty
+        expect(validator.warnings).to be_empty
       end
     end
 
     context "when logs limit exceeded" do
-      it "raises LimitExceededError" do
-        signals = create_logs(11)
+      it "truncates logs to max limit" do
+        signals = create_logs(15)
 
-        expect { validator.validate!(signals) }.to raise_error(
-          Diffdash::LimitExceededError,
-          /Logs limit exceeded: found 11, max allowed 10/
-        )
-      end
+        result = validator.truncate_and_validate(signals)
 
-      it "includes top contributor in error message" do
-        signals = 11.times.map do |i|
-          create_signal(type: :log, name: "log_#{i}", defining_class: "NoisyClass")
-        end
-
-        expect { validator.validate!(signals) }.to raise_error(
-          Diffdash::LimitExceededError,
-          /Top contributor: NoisyClass/
-        )
+        logs = result.select(&:log?)
+        expect(logs.size).to eq(10)
+        expect(validator.warnings).to include("5 logs not added to dashboard (limit: 10)")
       end
     end
 
     context "when metrics limit exceeded" do
-      it "raises LimitExceededError" do
-        signals = create_metrics(11)
+      it "truncates metrics to max limit" do
+        signals = create_metrics(15)
 
-        expect { validator.validate!(signals) }.to raise_error(
-          Diffdash::LimitExceededError,
-          /Metrics limit exceeded: found 11, max allowed 10/
-        )
+        result = validator.truncate_and_validate(signals)
+
+        metrics = result.select(&:metric?)
+        expect(metrics.size).to eq(10)
+        expect(validator.warnings).to include("5 metrics not added to dashboard (limit: 10)")
       end
     end
 
     context "when events limit exceeded" do
-      it "raises LimitExceededError" do
-        signals = create_events(6)
+      it "truncates events to max limit" do
+        signals = create_events(8)
 
-        expect { validator.validate!(signals) }.to raise_error(
-          Diffdash::LimitExceededError,
-          /Events limit exceeded: found 6, max allowed 5/
-        )
+        result = validator.truncate_and_validate(signals)
+
+        events = result.select(&:event?)
+        expect(events.size).to eq(5)
+        expect(validator.warnings).to include("3 events not added to dashboard (limit: 5)")
       end
     end
 
     context "when panel limit exceeded" do
-      it "raises LimitExceededError for too many total panels" do
-        # 10 logs = 10 panels, 3 counters = 3 panels = 13 panels > 12
-        signals = create_logs(10) + create_metrics(3)
+      it "truncates signals to fit panel limit" do
+        # 10 logs = 10 panels, 5 counters = 5 panels = 15 panels > 12
+        signals = create_logs(10) + create_metrics(5)
 
-        expect { validator.validate!(signals) }.to raise_error(
-          Diffdash::LimitExceededError,
-          /Panel limit exceeded: 13 panels would be generated/
-        )
+        result = validator.truncate_and_validate(signals)
+
+        # Should truncate to fit 12 panels (remove 3 logs)
+        logs = result.select(&:log?)
+        metrics = result.select(&:metric?)
+        
+        expect(logs.size + metrics.size).to be <= 12
+        expect(validator.warnings).not_to be_empty
+        expect(validator.warnings.first).to match(/not added to dashboard \(panel limit: 12\)/)
       end
 
-      it "counts histogram as 3 panels" do
-        # 1 histogram = 3 panels (p50, p95, p99)
-        # 10 logs = 10 panels
-        # Total = 13 panels > 12
+      it "counts histogram as 3 panels when truncating" do
+        # 10 logs = 10 panels, 1 histogram = 3 panels = 13 panels > 12
         signals = create_logs(10) + create_metrics(1, type: :histogram)
 
-        expect { validator.validate!(signals) }.to raise_error(
-          Diffdash::LimitExceededError,
-          /Panel limit exceeded: 13 panels/
-        )
+        result = validator.truncate_and_validate(signals)
+
+        # Should remove 1 log to fit (10 - 1 = 9 logs + 1 histogram = 12 panels)
+        logs = result.select(&:log?)
+        expect(logs.size).to eq(9)
+        expect(validator.warnings).to include("1 logs not added to dashboard (panel limit: 12)")
       end
 
-      it "includes breakdown in error message" do
-        signals = create_logs(10) + create_metrics(3)
+      it "removes histograms when needed for panel limit" do
+        # 8 logs + 2 histograms = 8 + 6 = 14 panels > 12
+        signals = create_logs(8) + create_metrics(2, type: :histogram)
 
-        expect { validator.validate!(signals) }.to raise_error(
-          Diffdash::LimitExceededError,
-          /Breakdown: 10 logs, 3 metrics, 0 events/
-        )
+        result = validator.truncate_and_validate(signals)
+
+        # Should remove logs first, then histograms if needed
+        total_panels = result.select(&:log?).size + 
+                       result.select(&:metric?).count { |m| m.metadata[:metric_type] == :histogram } * 3
+        
+        expect(total_panels).to be <= 12
+        expect(validator.warnings).not_to be_empty
       end
     end
 
-    context "error message formatting" do
-      it "identifies the class contributing most signals" do
-        signals = [
-          create_signal(type: :log, name: "a", defining_class: "SmallClass"),
-          create_signal(type: :log, name: "b", defining_class: "BigClass"),
-          create_signal(type: :log, name: "c", defining_class: "BigClass"),
-          create_signal(type: :log, name: "d", defining_class: "BigClass"),
-        ] + create_logs(8) # Total 12 logs
+    context "multiple limit violations" do
+      it "applies both type and panel limits" do
+        # 15 logs (exceeds log limit of 10) + 15 metrics (exceeds metric limit of 10)
+        signals = create_logs(15) + create_metrics(15)
 
-        expect { validator.validate!(signals) }.to raise_error(
-          Diffdash::LimitExceededError,
-          /Top contributor: .* \(\d+ signals\)/
-        )
+        result = validator.truncate_and_validate(signals)
+
+        logs = result.select(&:log?)
+        metrics = result.select(&:metric?)
+
+        # Should first truncate to type limits (10 logs + 10 metrics = 20 panels)
+        # Then truncate to panel limit (12 panels)
+        expect(logs.size + metrics.size).to be <= 12
+        expect(validator.warnings.size).to be >= 2 # At least type limit + panel limit warnings
       end
     end
   end

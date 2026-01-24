@@ -3,7 +3,7 @@
 RSpec.describe Diffdash::Engine::Engine do
   let(:config) { Diffdash::Config.new }
   let(:collector) { instance_double(Diffdash::Services::SignalCollector) }
-  let(:validator) { instance_double(Diffdash::Validation::Limits, validate!: true) }
+  let(:validator) { instance_double(Diffdash::Validation::Limits, truncate_and_validate: [log_signal, counter_signal], warnings: []) }
   let(:change_set) do
     Diffdash::Engine::ChangeSet.new(
       branch_name: "feature/test",
@@ -55,9 +55,9 @@ RSpec.describe Diffdash::Engine::Engine do
     expect(bundle.metadata[:dynamic_metrics]).to eq([{ file: "app/models/user.rb", line: 10 }])
   end
 
-  it "runs validation against detected signals" do
+  it "truncates signals if limits exceeded" do
     described_class.new(config: config).run(change_set: change_set)
 
-    expect(validator).to have_received(:validate!).with([log_signal, counter_signal])
+    expect(validator).to have_received(:truncate_and_validate).with([log_signal, counter_signal])
   end
 end
