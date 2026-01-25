@@ -83,16 +83,15 @@ Set these in a `.env` file in your project root:
 | `DIFFDASH_GRAFANA_FOLDER_ID` | No | Target folder ID for dashboards |
 | `DIFFDASH_OUTPUTS` | No | Comma-separated outputs (default: `grafana`) |
 | `DIFFDASH_DRY_RUN` | No | Set to `true` to force dry-run mode |
+| `DIFFDASH_APP_NAME` | No | Override app name in dashboard (defaults to Git repo name) |
 | `DIFFDASH_PR_DEPLOY_ANNOTATION_EXPR` | No | PromQL expr for PR deployment annotation |
-
-Legacy `GRAFANA_*` env vars are still supported as fallbacks for now.
 
 ## Output
 
 When signals are found, JSON is output first, then a summary:
 
 ```
-[diffdash] v0.4.0
+[diffdash] vX.X.X
 { ... dashboard JSON ... }
 
 [diffdash] Dashboard created with 4 panels: 2 logs, 3 counters, 1 gauge, 1 histogram
@@ -103,7 +102,7 @@ When signals are found, JSON is output first, then a summary:
 In dry-run mode:
 
 ```
-[diffdash] v0.4.0
+[diffdash] vX.X.X
 { ... dashboard JSON ... }
 
 [diffdash] Dashboard created with 4 panels: 2 logs, 3 counters, 1 gauge, 1 histogram
@@ -113,7 +112,7 @@ In dry-run mode:
 **If no signals are found, no dashboard is created:**
 
 ```
-[diffdash] v0.4.0
+[diffdash] vX.X.X
 [diffdash] No observability signals found in changed files
 [diffdash] Dashboard not created
 ```
@@ -223,9 +222,9 @@ When `PaymentProcessor` is changed, signals from `BaseProcessor` and `Loggable` 
 ### Setup
 
 1. **Add secrets to your repository:**
-   - `GRAFANA_URL` - Your Grafana instance URL
-   - `GRAFANA_TOKEN` - Service Account token with Editor role
-   - `GRAFANA_FOLDER_ID` (optional) - Folder ID for dashboards
+   - `DIFFDASH_GRAFANA_URL` - Your Grafana instance URL
+   - `DIFFDASH_GRAFANA_TOKEN` - Service Account token with Editor role
+   - `DIFFDASH_GRAFANA_FOLDER_ID` (optional) - Folder ID for dashboards
 
 2. **Create workflow file** `.github/workflows/pr-dashboard.yml`:
 
@@ -253,9 +252,9 @@ jobs:
 
       - name: Generate dashboard
         env:
-          GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
-          GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
-          GRAFANA_FOLDER_ID: ${{ secrets.GRAFANA_FOLDER_ID }}
+          DIFFDASH_GRAFANA_URL: ${{ secrets.DIFFDASH_GRAFANA_URL }}
+          DIFFDASH_GRAFANA_TOKEN: ${{ secrets.DIFFDASH_GRAFANA_TOKEN }}
+          DIFFDASH_GRAFANA_FOLDER_ID: ${{ secrets.DIFFDASH_GRAFANA_FOLDER_ID }}
         run: diffdash --verbose
 ```
 
