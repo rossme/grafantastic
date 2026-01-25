@@ -387,40 +387,80 @@ ignore_paths:
 default_env: staging
 ```
 
-2. **Add the API token as a repository secret:**
-   - `DIFFDASH_GRAFANA_TOKEN` - Service Account token with Editor role
+2. **Add secrets to your repository:**
+   - `DIFFDASH_GRAFANA_TOKEN` - Grafana Service Account token with Editor role
+   - `GITHUB_TOKEN` - Automatically provided by GitHub Actions (for PR comments)
 
-3. **Create workflow file** `.github/workflows/pr-dashboard.yml`:
+3. **Create workflow file** `.github/workflows/diffdash-dashboard.yml`:
 
 ```yaml
-name: PR Observability Dashboard
+name: Diffdash Dashboard
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**/*.rb"
+      - "!spec/**"
+      - "!test/**"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write  # Required for PR comments
 
 jobs:
-  dashboard:
+  generate-dashboard:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - uses: ruby/setup-ruby@v1
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.x'
+          ruby-version: .ruby-version
+
+      - name: Ensure branch name is set
+        run: |
+          BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          if [ -n "$BRANCH" ]; then
+            git checkout -B "$BRANCH"
+          fi
+
+      - name: Install GitHub CLI
+        run: |
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt update \
+          && sudo apt install gh -y
 
       - name: Install diffdash
         run: gem install diffdash
 
       - name: Generate dashboard
         env:
+          DIFFDASH_GRAFANA_URL: ${{ secrets.DIFFDASH_GRAFANA_URL }}
           DIFFDASH_GRAFANA_TOKEN: ${{ secrets.DIFFDASH_GRAFANA_TOKEN }}
+          DIFFDASH_GRAFANA_FOLDER_ID: ${{ secrets.DIFFDASH_GRAFANA_FOLDER_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: diffdash --verbose
 ```
 
-The workflow reads `grafana.url` and `grafana.folder_id` from the committed `diffdash.yml`, while the token is injected securely via environment variable.
+**What this does:**
+- Runs on PRs when Ruby files change
+- Installs GitHub CLI for automatic PR comments
+- Generates a Grafana dashboard scoped to changed files
+- Posts a comment to the PR with the dashboard link and signal summary
+- Re-runs on push to `main` to update the dashboard
+
+**Note:** The workflow reads `grafana.url` and `grafana.folder_id` from `diffdash.yml`, but you can also set them via secrets (`DIFFDASH_GRAFANA_URL`, `DIFFDASH_GRAFANA_FOLDER_ID`) which take precedence.
 
 ## Development
 
