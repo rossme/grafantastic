@@ -23,17 +23,7 @@ module Diffdash
       end
 
       def execute
-        # Validate arguments first (unless asking for help)
-        unless @help
-          invalid_args = find_invalid_arguments
-          if invalid_args.any?
-            warn "ERROR: Unknown argument(s): #{invalid_args.join(", ")}"
-            warn ""
-            warn "Run 'diffdash --help' for usage information."
-            return 1
-          end
-        end
-
+        # Handle version and help early (skip validation for these)
         if @version
           puts "diffdash #{VERSION}"
           return 0
@@ -42,6 +32,15 @@ module Diffdash
         if @help && @subcommand.nil?
           print_help
           return 0
+        end
+
+        # Validate arguments (after version/help checks)
+        invalid_args = find_invalid_arguments
+        if invalid_args.any?
+          warn "ERROR: Unknown argument(s): #{invalid_args.join(", ")}"
+          warn ""
+          warn "Run 'diffdash --help' for usage information."
+          return 1
         end
 
         # Handle subcommands

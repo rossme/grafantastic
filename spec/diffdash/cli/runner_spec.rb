@@ -69,5 +69,12 @@ RSpec.describe Diffdash::CLI::Runner do
 
       expect(runner.execute).to eq(0)
     end
+
+    it "bypasses argument validation like --help" do
+      runner = described_class.new(["--version", "--invalid-arg"])
+
+      expect { runner.execute }.to output("diffdash #{Diffdash::VERSION}\n").to_stdout
+      expect(runner.execute).to eq(0)
+    end
   end
 end
