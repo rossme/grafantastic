@@ -60,6 +60,13 @@ module Diffdash
         log_verbose("Changed files: #{change_set.changed_files.size}")
         log_verbose("Filtered Ruby files: #{change_set.filtered_files.size}")
 
+        # Early exit if no files to analyze
+        if change_set.filtered_files.empty?
+          warn '[diffdash] No changed files found'
+          warn '[diffdash] Dashboard not created'
+          return 0
+        end
+
         engine = Engine::Engine.new(config: @config)
         bundle = engine.run(change_set: change_set)
         @dynamic_metrics = bundle.metadata[:dynamic_metrics] || []

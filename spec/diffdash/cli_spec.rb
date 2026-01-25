@@ -62,8 +62,67 @@ RSpec.describe Diffdash::CLI::Runner do
         expect(output).to be_empty
       end
 
-      it "outputs no signals message to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/No observability signals found/).to_stderr
+      it "outputs 'No changed files found' message to stderr" do
+        expect { described_class.run(["--dry-run"]) }.to output(/No changed files found/).to_stderr
+      end
+
+      it "outputs 'Dashboard not created' message to stderr" do
+        expect { described_class.run(["--dry-run"]) }.to output(/Dashboard not created/).to_stderr
+      end
+
+      it "returns 0 exit code" do
+        expect(described_class.run(["--dry-run"])).to eq(0)
+      end
+    end
+
+    context "with only filtered files changed" do
+      before do
+        # Spec files are filtered out by default
+        allow(git_context).to receive(:changed_files).and_return(["spec/models/user_spec.rb", "README.md"])
+      end
+
+      it "does not generate a dashboard" do
+        output = capture_stdout { described_class.run(["--dry-run"]) }
+
+        expect(output).to be_empty
+      end
+
+      it "outputs 'No changed files found' message to stderr" do
+        expect { described_class.run(["--dry-run"]) }.to output(/No changed files found/).to_stderr
+      end
+
+      it "outputs 'Dashboard not created' message to stderr" do
+        expect { described_class.run(["--dry-run"]) }.to output(/Dashboard not created/).to_stderr
+      end
+
+      it "returns 0 exit code" do
+        expect(described_class.run(["--dry-run"])).to eq(0)
+      end
+    end
+
+    context "with Ruby files but no signals" do
+      let(:empty_file) { create_empty_ruby_file }
+
+      before do
+        allow(git_context).to receive(:changed_files).and_return([empty_file])
+      end
+
+      after do
+        File.delete(empty_file) if File.exist?(empty_file)
+      end
+
+      it "does not generate a dashboard" do
+        output = capture_stdout { described_class.run(["--dry-run"]) }
+
+        expect(output).to be_empty
+      end
+
+      it "outputs 'No observability signals found' message to stderr" do
+        expect { described_class.run(["--dry-run"]) }.to output(/No observability signals found in changed files/).to_stderr
+      end
+
+      it "outputs 'Dashboard not created' message to stderr" do
+        expect { described_class.run(["--dry-run"]) }.to output(/Dashboard not created/).to_stderr
       end
 
       it "returns 0 exit code" do
@@ -269,6 +328,26 @@ RSpec.describe Diffdash::CLI::Runner do
           StatsD.increment("payments.success")
           Prometheus.gauge(:queue_size).set(100)
           StatsD.timing("request.duration", 150)
+        end
+      end
+    RUBY
+    file.close
+    file.path
+  end
+
+  def create_empty_ruby_file
+    file = Tempfile.new(["empty", ".rb"])
+    file.write(<<~RUBY)
+      class EmptyService
+        def process
+          # No logs or metrics here
+          calculate_something
+        end
+
+        private
+
+        def calculate_something
+          1 + 1
         end
       end
     RUBY
