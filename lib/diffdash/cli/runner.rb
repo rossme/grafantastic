@@ -86,7 +86,13 @@ module Diffdash
 
         # Summaries
         grafana_failed = errors.any? { |e| e[:adapter] == :grafana }
-        print_signal_summary(bundle, url: grafana_result&.dig(:url), grafana_failed: grafana_failed)
+        dashboard_url = grafana_result&.dig(:url)
+        print_signal_summary(bundle, url: dashboard_url, grafana_failed: grafana_failed)
+
+        # Post PR comment with dashboard link
+        if dashboard_url && @config.pr_comment?
+          post_pr_comment(dashboard_url)
+        end
 
         warn_limit_warnings if @limit_warnings.any?
         warn_output_errors(errors) if errors.any?
@@ -130,7 +136,8 @@ module Diffdash
               title: title,
               folder_id: @config.grafana_folder_id,
               dry_run: @dry_run,
-              verbose: @verbose
+              verbose: @verbose,
+              default_env: @config.default_env
             )
           when :json
             Outputs::Json.new
@@ -299,6 +306,13 @@ module Diffdash
         warn "[diffdash] #{message}" if @verbose
       end
 
+      def post_pr_comment(dashboard_url)
+        commenter = Services::PrCommenter.new(verbose: @verbose)
+        if commenter.post(dashboard_url: dashboard_url)
+          log_verbose("Posted dashboard link to PR")
+        end
+      end
+
       def print_help
         puts <<~HELP
           Usage: diffdash [command] [options]
@@ -322,6 +336,8 @@ module Diffdash
             DIFFDASH_GRAFANA_FOLDER_ID         Target folder ID (optional)
             DIFFDASH_OUTPUTS                   Comma-separated outputs (default: grafana)
             DIFFDASH_DRY_RUN                   Set to 'true' to force dry-run mode
+            DIFFDASH_DEFAULT_ENV               Default environment filter (default: production)
+            DIFFDASH_PR_COMMENT                Set to 'false' to disable PR comments
             DIFFDASH_PR_DEPLOY_ANNOTATION_EXPR PromQL for PR deployment annotation
 
           Output:

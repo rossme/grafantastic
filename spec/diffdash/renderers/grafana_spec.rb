@@ -364,5 +364,40 @@ RSpec.describe Diffdash::Outputs::Grafana do
         expect(result[:dashboard][:refresh]).to eq("30s")
       end
     end
+
+    context "with default_env option" do
+      let(:bundle) do
+        Diffdash::Engine::SignalBundle.new(
+          metadata: {
+            time_range: { from: "now-1h", to: "now" },
+            change_set: { branch_name: "feature/test" }
+          }
+        )
+      end
+
+      it "defaults env to production" do
+        renderer = described_class.new(title: "Test", folder_id: nil)
+        result = renderer.render(bundle)
+
+        env_var = result[:dashboard][:templating][:list].find { |v| v[:name] == "env" }
+        expect(env_var[:current]).to eq({ text: "production", value: "production" })
+      end
+
+      it "allows overriding default env to staging" do
+        renderer = described_class.new(title: "Test", folder_id: nil, default_env: "staging")
+        result = renderer.render(bundle)
+
+        env_var = result[:dashboard][:templating][:list].find { |v| v[:name] == "env" }
+        expect(env_var[:current]).to eq({ text: "staging", value: "staging" })
+      end
+
+      it "allows overriding default env to development" do
+        renderer = described_class.new(title: "Test", folder_id: nil, default_env: "development")
+        result = renderer.render(bundle)
+
+        env_var = result[:dashboard][:templating][:list].find { |v| v[:name] == "env" }
+        expect(env_var[:current]).to eq({ text: "development", value: "development" })
+      end
+    end
   end
 end

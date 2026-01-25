@@ -92,4 +92,33 @@ RSpec.describe Diffdash::Config do
       expect(config.dry_run?).to be false
     end
   end
+
+  describe "#default_env" do
+    it "returns DIFFDASH_DEFAULT_ENV when set" do
+      allow(ENV).to receive(:[]).with("DIFFDASH_DEFAULT_ENV").and_return("staging")
+      expect(config.default_env).to eq("staging")
+    end
+
+    it "defaults to 'production' when not set" do
+      allow(ENV).to receive(:[]).with("DIFFDASH_DEFAULT_ENV").and_return(nil)
+      expect(config.default_env).to eq("production")
+    end
+  end
+
+  describe "#pr_comment?" do
+    it "returns true by default" do
+      allow(ENV).to receive(:[]).with("DIFFDASH_PR_COMMENT").and_return(nil)
+      expect(config.pr_comment?).to be true
+    end
+
+    it "returns false when DIFFDASH_PR_COMMENT is 'false'" do
+      allow(ENV).to receive(:[]).with("DIFFDASH_PR_COMMENT").and_return("false")
+      expect(config.pr_comment?).to be false
+    end
+
+    it "returns true for any other value" do
+      allow(ENV).to receive(:[]).with("DIFFDASH_PR_COMMENT").and_return("true")
+      expect(config.pr_comment?).to be true
+    end
+  end
 end

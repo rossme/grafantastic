@@ -5,11 +5,12 @@ module Diffdash
     # Grafana output adapter.
     # Translates SignalQuery intent into Grafana dashboard JSON.
     class Grafana < Base
-      def initialize(title:, folder_id:, dry_run: false, verbose: false)
+      def initialize(title:, folder_id:, dry_run: false, verbose: false, default_env: "production")
         @title = title
         @folder_id = folder_id
         @dry_run = dry_run
         @verbose = verbose
+        @default_env = default_env
       end
 
       # Render SignalBundle into Grafana dashboard payload
@@ -94,7 +95,7 @@ module Diffdash
           name: "env",
           type: "custom",
           query: "production,staging,development,local",
-          current: { text: "production", value: "production" },
+          current: { text: @default_env, value: @default_env },
           includeAll: false,
           multi: false
         }

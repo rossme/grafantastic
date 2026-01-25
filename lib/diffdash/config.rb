@@ -43,5 +43,13 @@ module Diffdash
     def dry_run?
       ENV["DIFFDASH_DRY_RUN"] == "true"
     end
+
+    def default_env
+      ENV["DIFFDASH_DEFAULT_ENV"] || "production"
+    end
+
+    def pr_comment?
+      ENV["DIFFDASH_PR_COMMENT"] != "false"
+    end
   end
 end
