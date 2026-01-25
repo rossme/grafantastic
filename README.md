@@ -1,6 +1,6 @@
 # Diffdash
 
-**Observability focused on the code you're shipping, not the noise.**
+**Observability for the code that matters to you.**
 
 PR-scoped observability signal extractor and Grafana dashboard generator.
 
