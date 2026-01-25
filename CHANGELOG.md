@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- YAML configuration file support (`diffdash.yml`) for shared team configuration
+- New `--config` CLI flag to specify custom config file path
+- Configurable file filtering: `ignore_paths`, `include_paths`, `excluded_suffixes`, `excluded_directories`
+- Configuration file discovery (current dir, git root, explicit path)
+- Example configuration file (`diffdash.example.yml`)
 - Grafana v1 golden fixture contract test
 - Adapter isolation spec
 - Hard-fail on missing branch name

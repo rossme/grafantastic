@@ -23,16 +23,39 @@ gem install diffdash-*.gem
 
 ## Quick Start
 
-### 1. Add these to your application's `.env` (dotenv) file
+### Option A: Configuration File (Recommended for Teams)
+
+Create a `diffdash.yml` in your repository root:
+
+```yaml
+grafana:
+  url: https://myorg.grafana.net
+  folder_id: 42
+
+ignore_paths:
+  - vendor/
+  - lib/legacy/
+
+default_env: production
+```
+
+Then set your API token via environment variable (never commit tokens):
+
+```bash
+export DIFFDASH_GRAFANA_TOKEN=glsa_xxxxxxxxxxxx
+```
+
+### Option B: Environment Variables Only
+
+Add to your `.env` file:
 
 ```bash
 DIFFDASH_GRAFANA_URL=https://myorg.grafana.net
 DIFFDASH_GRAFANA_TOKEN=glsa_xxxxxxxxxxxx
 DIFFDASH_GRAFANA_FOLDER_ID=42  # optional
-DIFFDASH_OUTPUTS=grafana,json
 ```
 
-### 2. Find your folder ID (optional)
+### Find Your Folder ID (Optional)
 
 ```bash
 diffdash folders
@@ -49,7 +72,7 @@ Available Grafana folders:
 Set DIFFDASH_GRAFANA_FOLDER_ID in your .env file to use a specific folder
 ```
 
-### 3. Generate Dashboard
+### Generate Dashboard
 
 ```bash
 # From your repo with changed files
@@ -57,6 +80,9 @@ diffdash
 
 # Or dry-run to see JSON without uploading
 diffdash --dry-run
+
+# Use a custom config file
+diffdash --config path/to/config.yml
 ```
 
 ## CLI Usage
@@ -70,26 +96,87 @@ diffdash [command] [options]
 - *(none)* - Run analysis and generate/upload dashboard
 
 **Options:**
+- `--config FILE` - Path to configuration file (default: `diffdash.yml` in repo root)
 - `--dry-run` - Generate JSON only, don't upload to Grafana
-- `--verbose` - Show detailed progress and dynamic metric warnings
+- `--verbose` - Show detailed progress, config source, and dynamic metric warnings
 - `--version` - Show version number
 - `--help` - Show help
 
+## Configuration File
+
+Create a `diffdash.yml` (or `.diffdash.yml`) in your repository root to share configuration across your team.
+
+### Example Configuration
+
+```yaml
+# Grafana connection
+grafana:
+  url: https://myorg.grafana.net
+  folder_id: 42
+
+# Output adapters (grafana, json)
+outputs:
+  - grafana
+  - json
+
+# General settings
+default_env: production
+pr_comment: true
+app_name: my-service
+
+# File filtering
+ignore_paths:
+  - vendor/
+  - lib/legacy/
+  - tmp/
+
+include_paths:        # Optional whitelist (empty = scan all)
+  - app/
+  - lib/
+
+excluded_suffixes:    # Defaults: _spec.rb, _test.rb
+  - _spec.rb
+  - _test.rb
+
+excluded_directories: # Defaults: spec, test, config
+  - spec
+  - test
+  - config
+```
+
+### Configuration Precedence
+
+Configuration is loaded from multiple sources (highest to lowest priority):
+
+1. **Environment variables** - Always take precedence
+2. **`--config` flag** - Explicitly specified config file
+3. **Config file in current directory** - `diffdash.yml`, `.diffdash.yml`, `diffdash.yaml`, `.diffdash.yaml`
+4. **Config file in git root** - If different from current directory
+5. **Default values**
+
+### Security Note
+
+**API tokens are only loaded from environment variables** — never from config files. This prevents accidental commits of secrets. The `grafana.token` key is intentionally ignored if present in the YAML.
+
 ## Environment Variables
 
-Set these in a `.env` file in your project root:
+Environment variables can be set in a `.env` file or exported directly. They **always override** config file values.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DIFFDASH_GRAFANA_URL` | Yes | Grafana instance URL (e.g., `https://myorg.grafana.net`) |
-| `DIFFDASH_GRAFANA_TOKEN` | Yes | Grafana API token (Service Account token with Editor role) |
-| `DIFFDASH_GRAFANA_FOLDER_ID` | No | Target folder ID for dashboards |
-| `DIFFDASH_OUTPUTS` | No | Comma-separated outputs (default: `grafana`) |
-| `DIFFDASH_DRY_RUN` | No | Set to `true` to force dry-run mode |
-| `DIFFDASH_DEFAULT_ENV` | No | Default environment filter (default: `production`) |
-| `DIFFDASH_APP_NAME` | No | Override app name in dashboard (defaults to Git repo name) |
-| `DIFFDASH_PR_COMMENT` | No | Set to `false` to disable PR comments with dashboard link |
-| `DIFFDASH_PR_DEPLOY_ANNOTATION_EXPR` | No | PromQL expr for PR deployment annotation |
+| Variable | Required | Config File Equivalent | Description |
+|----------|----------|------------------------|-------------|
+| `DIFFDASH_GRAFANA_URL` | Yes* | `grafana.url` | Grafana instance URL |
+| `DIFFDASH_GRAFANA_TOKEN` | Yes | *(env only)* | Grafana API token (never in config file) |
+| `DIFFDASH_GRAFANA_FOLDER_ID` | No | `grafana.folder_id` | Target folder ID for dashboards |
+| `DIFFDASH_OUTPUTS` | No | `outputs` | Comma-separated outputs (default: `grafana`) |
+| `DIFFDASH_DRY_RUN` | No | — | Set to `true` to force dry-run mode |
+| `DIFFDASH_DEFAULT_ENV` | No | `default_env` | Default environment filter (default: `production`) |
+| `DIFFDASH_APP_NAME` | No | `app_name` | Override app name (defaults to Git repo name) |
+| `DIFFDASH_PR_COMMENT` | No | `pr_comment` | Set to `false` to disable PR comments |
+| `DIFFDASH_PR_DEPLOY_ANNOTATION_EXPR` | No | `pr_deploy_annotation_expr` | PromQL expr for PR deployment annotation |
+
+*Required unless set in config file.
+
+**Legacy fallbacks:** `GRAFANA_URL`, `GRAFANA_TOKEN`, `GRAFANA_FOLDER_ID` are also supported if the `DIFFDASH_` versions aren't set.
 
 ## Output
 
@@ -203,14 +290,45 @@ If any limit is exceeded, the gem aborts with a clear error message and exits wi
 
 ## File Filtering
 
-**Included:**
-- Files ending with `.rb`
-- Ruby application code
+By default, diffdash scans Ruby files while excluding test and config directories.
 
-**Excluded:**
-- `*_spec.rb`, `*_test.rb`
-- Files in `/spec/`, `/test/`, `/config/`
-- Non-Ruby files
+**Default behavior:**
+
+| Filter | Default Value | Config Key |
+|--------|---------------|------------|
+| Included extensions | `.rb` | — |
+| Excluded suffixes | `_spec.rb`, `_test.rb` | `excluded_suffixes` |
+| Excluded directories | `spec`, `test`, `config` | `excluded_directories` |
+| Ignored paths | *(none)* | `ignore_paths` |
+| Included paths | *(all)* | `include_paths` |
+
+**Customizing in `diffdash.yml`:**
+
+```yaml
+# Ignore additional paths
+ignore_paths:
+  - vendor/
+  - lib/legacy/
+  - tmp/
+
+# Only scan specific paths (optional whitelist)
+include_paths:
+  - app/
+  - lib/
+
+# Add custom excluded suffixes
+excluded_suffixes:
+  - _spec.rb
+  - _test.rb
+  - _integration.rb
+
+# Add custom excluded directories
+excluded_directories:
+  - spec
+  - test
+  - config
+  - features
+```
 
 ## Inheritance & Module Support
 
@@ -256,12 +374,23 @@ When `PaymentProcessor` is changed, signals from `BaseProcessor` and `Loggable` 
 
 ### Setup
 
-1. **Add secrets to your repository:**
-   - `DIFFDASH_GRAFANA_URL` - Your Grafana instance URL
-   - `DIFFDASH_GRAFANA_TOKEN` - Service Account token with Editor role
-   - `DIFFDASH_GRAFANA_FOLDER_ID` (optional) - Folder ID for dashboards
+1. **Create `diffdash.yml`** in your repository root with shared settings:
 
-2. **Create workflow file** `.github/workflows/pr-dashboard.yml`:
+```yaml
+grafana:
+  url: https://myorg.grafana.net
+  folder_id: 42
+
+ignore_paths:
+  - vendor/
+
+default_env: staging
+```
+
+2. **Add the API token as a repository secret:**
+   - `DIFFDASH_GRAFANA_TOKEN` - Service Account token with Editor role
+
+3. **Create workflow file** `.github/workflows/pr-dashboard.yml`:
 
 ```yaml
 name: PR Observability Dashboard
@@ -287,11 +416,11 @@ jobs:
 
       - name: Generate dashboard
         env:
-          DIFFDASH_GRAFANA_URL: ${{ secrets.DIFFDASH_GRAFANA_URL }}
           DIFFDASH_GRAFANA_TOKEN: ${{ secrets.DIFFDASH_GRAFANA_TOKEN }}
-          DIFFDASH_GRAFANA_FOLDER_ID: ${{ secrets.DIFFDASH_GRAFANA_FOLDER_ID }}
         run: diffdash --verbose
 ```
+
+The workflow reads `grafana.url` and `grafana.folder_id` from the committed `diffdash.yml`, while the token is injected securely via environment variable.
 
 ## Development
 
