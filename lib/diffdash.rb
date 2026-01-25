@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-# Diffdash: Observability for the code that matters to you.
+# Diffdash: Observability focused on the code you're shipping, not the noise.
 #
 # Automatically generates Grafana dashboards scoped to your PR's changes,
-# so you see exactly the logs and metrics that matter for smoke testing.
+# so you see exactly the logs and metrics that matter to you.
 
 require "json"
 require "digest"

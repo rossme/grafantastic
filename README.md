@@ -1,12 +1,12 @@
 # Diffdash
 
-**Observability for the code that matters to you.**
+**Observability focused on the code you're shipping, not the noise.**
 
 PR-scoped observability signal extractor and Grafana dashboard generator.
 
 ## Overview
 
-Diffdash statically analyzes Ruby source code changed in a Pull Request and generates a Grafana dashboard JSON containing panels relevant to the observability signals found in that code. No more searching through dashboards with thousands of metrics — see exactly what your PR introduces.
+Diffdash statically analyzes Ruby source code changed in a Pull Request and generates a Grafana dashboard JSON containing panels relevant to the observability signals found in that code. No more searching through dashboards with thousands of metrics — see exactly the logs and metrics that matter to you.
 
 ## Installation
 
