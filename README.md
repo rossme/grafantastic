@@ -70,6 +70,7 @@ diffdash [command] [options]
 **Options:**
 - `--dry-run` - Generate JSON only, don't upload to Grafana
 - `--verbose` - Show detailed progress and dynamic metric warnings
+- `--version` - Show version number
 - `--help` - Show help
 
 ## Environment Variables
@@ -137,6 +138,10 @@ In dry-run mode:
 | StatsD | `gauge`, `set` | gauge |
 | StatsD | `timing`, `time` | histogram |
 | Statsd | (same as StatsD) | |
+| Datadog | `increment`, `incr` | counter |
+| Datadog | `gauge`, `set` | gauge |
+| Datadog | `timing`, `time` | histogram |
+| DogStatsD | (same as Datadog) | |
 | Hesiod | `emit` | counter |
 
 ### Dynamic Metrics Warning

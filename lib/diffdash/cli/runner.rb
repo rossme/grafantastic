@@ -4,7 +4,7 @@ module Diffdash
   module CLI
     # Thin CLI glue. Orchestrates engine + output adapters.
     class Runner
-      VALID_OPTIONS = %w[--dry-run --verbose -v --help -h].freeze
+      VALID_OPTIONS = %w[--dry-run --verbose -v --help -h --version].freeze
       VALID_SUBCOMMANDS = %w[folders rspec].freeze
 
       def self.run(args)
@@ -16,6 +16,7 @@ module Diffdash
         @config = Config.new
         @dry_run = ENV["DIFFDASH_DRY_RUN"] == "true" || args.include?("--dry-run")
         @help = args.include?("--help") || args.include?("-h")
+        @version = args.include?("--version")
         @verbose = args.include?("--verbose") || args.include?("-v")
         @subcommand = extract_subcommand(args)
         @dynamic_metrics = []
@@ -31,6 +32,11 @@ module Diffdash
             warn "Run 'diffdash --help' for usage information."
             return 1
           end
+        end
+
+        if @version
+          puts "diffdash #{VERSION}"
+          return 0
         end
 
         if @help && @subcommand.nil?
@@ -307,6 +313,7 @@ module Diffdash
           Options:
             --dry-run    Generate JSON only, skip Grafana connection
             --verbose    Print detailed progress information
+            --version    Show version number
             --help       Show this help message
 
           Environment Variables (set in .env file):
