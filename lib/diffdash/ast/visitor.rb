@@ -31,7 +31,7 @@ module Diffdash
       LOG_GENERIC_METHODS = %i[add log].freeze # Generic logging methods that take severity as first arg
 
       # Metric client patterns
-      METRIC_RECEIVERS = %i[Prometheus StatsD Statsd Hesiod].freeze
+      METRIC_RECEIVERS = %i[Prometheus StatsD Statsd Hesiod Datadog DogStatsD].freeze
       COUNTER_METHODS = %i[counter increment incr].freeze
       GAUGE_METHODS = %i[gauge set].freeze
       HISTOGRAM_METHODS = %i[histogram observe timing time].freeze
@@ -179,19 +179,32 @@ module Diffdash
         false
       end
 
-      # Methods that create metric objects (not action methods)
+      # Methods that create metric objects (Prometheus factory pattern)
       METRIC_FACTORY_METHODS = %i[counter gauge histogram summary].freeze
       # Methods that perform metric actions
       METRIC_ACTION_METHODS = %i[increment incr decrement decr set observe time timing].freeze
+      # StatsD-style action methods (called directly, not via factory pattern)
+      STATSD_ACTION_METHODS = %i[increment incr decrement decr gauge set timing time histogram distribution emit].freeze
+      # Receivers that use factory pattern (Prometheus.counter(:name).increment)
+      FACTORY_PATTERN_RECEIVERS = %i[Prometheus].freeze
+      # Receivers that use direct action pattern (StatsD.increment("name"))
+      DIRECT_ACTION_RECEIVERS = %i[StatsD Statsd Datadog DogStatsD Hesiod].freeze
 
       def metric_call?(receiver, method_name, args)
         return false unless receiver
 
-        # Direct calls with action method: StatsD.increment("metric")
-        # Only match if method_name is an action, not a factory
+        # Direct calls: StatsD.increment("metric"), Datadog.gauge("metric", val)
         if receiver.type == :const
           const_name = extract_const_name(receiver)&.to_sym
-          return METRIC_RECEIVERS.include?(const_name) && !METRIC_FACTORY_METHODS.include?(method_name)
+          return false unless METRIC_RECEIVERS.include?(const_name)
+
+          # For direct-action receivers (StatsD, Datadog, etc.), accept their action methods
+          if DIRECT_ACTION_RECEIVERS.include?(const_name)
+            return STATSD_ACTION_METHODS.include?(method_name)
+          end
+
+          # For factory-pattern receivers (Prometheus), reject factory methods as direct calls
+          return !METRIC_FACTORY_METHODS.include?(method_name)
         end
 
         # Chained calls: Prometheus.counter(:name).increment
@@ -367,7 +380,7 @@ module Diffdash
       def infer_metric_type(method_name)
         return :counter if COUNTER_METHODS.include?(method_name)
         return :gauge if GAUGE_METHODS.include?(method_name)
-        return :histogram if HISTOGRAM_METHODS.include?(method_name)
+        return :histogram if HISTOGRAM_METHODS.include?(method_name) || method_name == :distribution
         return :summary if SUMMARY_METHODS.include?(method_name)
 
         :counter # Default

@@ -56,4 +56,18 @@ RSpec.describe Diffdash::CLI::Runner do
     expect(errors.size).to eq(1)
     expect(results.values.map { |r| r[:payload] }).to include({ ok: true })
   end
+
+  describe "--version flag" do
+    it "prints version and exits with 0" do
+      runner = described_class.new(["--version"])
+
+      expect { runner.execute }.to output("diffdash #{Diffdash::VERSION}\n").to_stdout
+    end
+
+    it "returns exit code 0" do
+      runner = described_class.new(["--version"])
+
+      expect(runner.execute).to eq(0)
+    end
+  end
 end

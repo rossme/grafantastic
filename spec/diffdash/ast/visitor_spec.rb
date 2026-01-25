@@ -342,6 +342,66 @@ RSpec.describe Diffdash::AST::Visitor do
         expect(visitor.metric_calls.size).to eq(1)
       end
 
+      it "detects Datadog.increment calls" do
+        source = <<~RUBY
+          class Foo
+            def bar
+              Datadog.increment("payments.processed")
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.metric_calls.size).to eq(1)
+        expect(visitor.metric_calls.first[:name]).to eq("payments.processed")
+        expect(visitor.metric_calls.first[:metric_type]).to eq(:counter)
+      end
+
+      it "detects DogStatsD.increment calls" do
+        source = <<~RUBY
+          class Foo
+            def bar
+              DogStatsD.increment("events.count")
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.metric_calls.size).to eq(1)
+        expect(visitor.metric_calls.first[:name]).to eq("events.count")
+        expect(visitor.metric_calls.first[:metric_type]).to eq(:counter)
+      end
+
+      it "detects Datadog.gauge calls" do
+        source = <<~RUBY
+          class Foo
+            def bar
+              Datadog.gauge("queue.size", 42)
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.metric_calls.size).to eq(1)
+        expect(visitor.metric_calls.first[:name]).to eq("queue.size")
+        expect(visitor.metric_calls.first[:metric_type]).to eq(:gauge)
+      end
+
+      it "detects Datadog.timing calls" do
+        source = <<~RUBY
+          class Foo
+            def bar
+              Datadog.timing("request.duration", 150)
+            end
+          end
+        RUBY
+        parse_and_visit(source)
+
+        expect(visitor.metric_calls.size).to eq(1)
+        expect(visitor.metric_calls.first[:name]).to eq("request.duration")
+        expect(visitor.metric_calls.first[:metric_type]).to eq(:histogram)
+      end
+
       it "detects Prometheus.counter calls" do
         source = <<~RUBY
           class Foo
