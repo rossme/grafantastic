@@ -21,25 +21,25 @@
           "name": "datasource",
           "type": "datasource",
           "query": "prometheus",
-          "current": {
-            "text": "default",
-            "value": "default"
-          },
+          "current": {},
           "options": [],
+          "includeAll": false,
+          "multi": false,
           "refresh": 1,
-          "hide": 0
+          "hide": 0,
+          "regex": ""
         },
         {
           "name": "datasource_loki",
           "type": "datasource",
           "query": "loki",
-          "current": {
-            "text": "default",
-            "value": "default"
-          },
+          "current": {},
           "options": [],
+          "includeAll": false,
+          "multi": false,
           "refresh": 1,
-          "hide": 0
+          "hide": 0,
+          "regex": "/^(?!.*alert).*/"
         },
         {
           "name": "env",

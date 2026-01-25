@@ -83,13 +83,13 @@ module Diffdash
           name: name,
           type: "datasource",
           query: query,
-          current: {
-            text: "default",
-            value: "default"
-          },
+          current: {},  # Let Grafana auto-select the first matching datasource
           options: [],
+          includeAll: false,
+          multi: false,
           refresh: 1,
-          hide: 0
+          hide: 0,
+          regex: query == "loki" ? "/^(?!.*alert).*/" : ""  # Exclude alert datasources for Loki
         }
       end
 
