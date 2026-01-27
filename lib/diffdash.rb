@@ -31,8 +31,6 @@ require_relative "diffdash/services/pr_commenter"
 require_relative "diffdash/formatters/dashboard_title"
 require_relative "diffdash/signals/log_extractor"
 require_relative "diffdash/signals/metric_extractor"
-require_relative "diffdash/signals/endpoint_extractor"
-require_relative "diffdash/signal/endpoint"
 require_relative "diffdash/validation/limits"
 
 # Engine (vendor-agnostic)

@@ -5,13 +5,12 @@ require_relative 'config_loader'
 module Diffdash
   class Config
     # Hard guard rail limits - not configurable for PoC
-    MAX_LOGS      = 10
-    MAX_METRICS   = 10
-    MAX_ENDPOINTS = 5
-    MAX_EVENTS    = 5
-    MAX_PANELS    = 15 # Increased to accommodate endpoint panels (3 each)
+    MAX_LOGS    = 10
+    MAX_METRICS = 10
+    MAX_EVENTS  = 5
+    MAX_PANELS  = 12
 
-    attr_reader :max_logs, :max_metrics, :max_endpoints, :max_events, :max_panels, :loader
+    attr_reader :max_logs, :max_metrics, :max_events, :max_panels, :loader
 
     # Initialize Config with optional YAML file support.
     #
@@ -20,7 +19,6 @@ module Diffdash
     def initialize(config_path: nil, working_dir: nil)
       @max_logs = MAX_LOGS
       @max_metrics = MAX_METRICS
-      @max_endpoints = MAX_ENDPOINTS
       @max_events = MAX_EVENTS
       @max_panels = MAX_PANELS
       @loader = ConfigLoader.new(config_path: config_path, working_dir: working_dir)
@@ -89,7 +87,6 @@ module Diffdash
       @loader.to_h.merge(
         max_logs: max_logs,
         max_metrics: max_metrics,
-        max_endpoints: max_endpoints,
         max_events: max_events,
         max_panels: max_panels
       )

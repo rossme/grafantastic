@@ -24,15 +24,6 @@ module Diffdash
             source_file: signal.source_file,
             defining_class: signal.defining_class
           )
-        when :endpoint
-          SignalQuery.new(
-            type: :endpoints,
-            name: signal.name,
-            time_range: time_range,
-            metadata: signal.metadata,
-            source_file: signal.source_file,
-            defining_class: signal.defining_class
-          )
         else
           nil
         end

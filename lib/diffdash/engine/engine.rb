@@ -29,7 +29,6 @@ module Diffdash
         bundle = SignalBundle.new(
           logs: build_queries(signals, :logs, time_range),
           metrics: build_queries(signals, :metrics, time_range),
-          endpoints: build_queries(signals, :endpoints, time_range),
           traces: [],
           metadata: {
             change_set: change_set.to_h,

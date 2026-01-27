@@ -31,10 +31,6 @@ module Diffdash
         false
       end
 
-      def endpoint?
-        false
-      end
-
       def event?
         false
       end

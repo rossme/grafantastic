@@ -23,8 +23,7 @@ module Diffdash
       attr_reader :file_path, :inheritance_depth, :class_definitions,
                   :module_definitions, :log_calls, :metric_calls,
                   :dynamic_metric_calls, :current_class,
-                  :included_modules, :prepended_modules, :extended_modules,
-                  :endpoint_calls
+                  :included_modules, :prepended_modules, :extended_modules
 
       # Logger method patterns
       LOG_RECEIVERS = %i[logger Rails].freeze
@@ -38,27 +37,6 @@ module Diffdash
       HISTOGRAM_METHODS = %i[histogram observe timing time].freeze
       SUMMARY_METHODS = %i[summary].freeze
 
-      # Endpoint detection patterns
-      # Rails controller base classes
-      CONTROLLER_PARENTS = %w[
-        ApplicationController
-        ActionController::Base
-        ActionController::API
-        ApiController
-        BaseController
-      ].freeze
-
-      # Grape/Sinatra HTTP method DSLs
-      HTTP_ROUTE_METHODS = %i[get post put patch delete head options].freeze
-
-      # API base classes (Grape, Sinatra)
-      API_BASE_CLASSES = %w[
-        Grape::API
-        Grape::API::Instance
-        Sinatra::Base
-        Sinatra::Application
-      ].freeze
-
       def initialize(file_path:, inheritance_depth:)
         @file_path = file_path
         @inheritance_depth = inheritance_depth
@@ -67,12 +45,10 @@ module Diffdash
         @log_calls = []
         @metric_calls = []
         @dynamic_metric_calls = []
-        @endpoint_calls = []
         @included_modules = []
         @prepended_modules = []
         @extended_modules = []
         @current_class = nil
-        @current_class_parent = nil
         @class_stack = []
       end
 
@@ -86,10 +62,6 @@ module Diffdash
           process_module(node)
         when :send
           process_send(node)
-        when :def
-          process_def(node)
-        when :block
-          process_block(node)
         else
           node.children.each { |child| process(child) }
         end
@@ -113,14 +85,11 @@ module Diffdash
 
         @class_stack.push(class_name)
         previous_class = @current_class
-        previous_parent = @current_class_parent
         @current_class = full_class_name
-        @current_class_parent = parent_name
 
         process(body) if body
 
         @current_class = previous_class
-        @current_class_parent = previous_parent
         @class_stack.pop
       end
 
@@ -154,36 +123,6 @@ module Diffdash
           record_metric_call(node, receiver, method_name, args)
         elsif module_inclusion?(receiver, method_name)
           record_module_inclusion(method_name, args)
-        end
-
-        # Continue traversing
-        node.children.each { |child| process(child) }
-      end
-
-      # Process method definitions - detect controller actions
-      def process_def(node)
-        method_name, _args, body = node.children
-
-        # Check if this is a controller action (public method in a controller class)
-        if controller_class? && public_action_method?(method_name)
-          record_controller_action(node, method_name)
-        end
-
-        # Continue traversing the method body
-        process(body) if body
-      end
-
-      # Process blocks - detect Grape/Sinatra route definitions
-      def process_block(node)
-        send_node, _args, body = node.children
-
-        if send_node&.type == :send
-          receiver, method_name, *args = send_node.children
-
-          # Check for HTTP route methods in API classes (get '/path' do ... end)
-          if api_class? && HTTP_ROUTE_METHODS.include?(method_name) && receiver.nil?
-            record_api_route(node, method_name, args)
-          end
         end
 
         # Continue traversing
@@ -449,118 +388,6 @@ module Diffdash
           else
             name.to_s
           end
-        else
-          nil
-        end
-      end
-
-      # Endpoint detection helpers
-
-      # Check if current class is a Rails controller
-      def controller_class?
-        return false unless @current_class
-
-        # Check by class name convention (ends with Controller)
-        return true if @current_class.end_with?("Controller")
-
-        # Check by parent class
-        return true if @current_class_parent && CONTROLLER_PARENTS.include?(@current_class_parent)
-
-        false
-      end
-
-      # Check if current class is a Grape/Sinatra API class
-      def api_class?
-        return false unless @current_class
-
-        # Check by parent class
-        return true if @current_class_parent && API_BASE_CLASSES.include?(@current_class_parent)
-
-        # Check if class name suggests an API endpoint
-        return true if @current_class.end_with?("API", "Api", "Endpoint", "Endpoints")
-
-        false
-      end
-
-      # Check if method name looks like a public controller action
-      # Excludes common callback/helper method patterns
-      def public_action_method?(method_name)
-        name = method_name.to_s
-
-        # Skip private/protected indicator methods
-        return false if name.start_with?("_")
-
-        # Skip common Rails callback patterns
-        return false if name.start_with?("before_", "after_", "around_")
-        return false if name.start_with?("set_", "find_", "load_", "require_", "authorize_", "authenticate_")
-        return false if name.end_with?("_params", "_attributes")
-
-        # Skip common helper methods
-        return false if %w[initialize permitted_params strong_params resource_params].include?(name)
-
-        true
-      end
-
-      # Record a controller action as an endpoint
-      def record_controller_action(node, method_name)
-        # Infer HTTP method from action name convention
-        http_method = infer_http_method_from_action(method_name.to_s)
-
-        @endpoint_calls << {
-          name: "#{@current_class}##{method_name}",
-          action_name: method_name.to_s,
-          http_method: http_method,
-          route_path: nil, # Can't infer path without routes.rb
-          defining_class: @current_class || "(top-level)",
-          line: node.loc&.line,
-          endpoint_type: :controller_action
-        }
-      end
-
-      # Record a Grape/Sinatra route as an endpoint
-      def record_api_route(node, http_method, args)
-        route_path = extract_route_path(args)
-
-        @endpoint_calls << {
-          name: route_path ? "#{http_method.to_s.upcase} #{route_path}" : "#{@current_class}##{http_method}",
-          action_name: http_method.to_s,
-          http_method: http_method.to_s.upcase,
-          route_path: route_path,
-          defining_class: @current_class || "(top-level)",
-          line: node.loc&.line,
-          endpoint_type: :api_route
-        }
-      end
-
-      # Infer HTTP method from Rails action name conventions
-      def infer_http_method_from_action(action_name)
-        case action_name
-        when "index", "show"
-          "GET"
-        when "create"
-          "POST"
-        when "update"
-          "PUT"
-        when "destroy", "delete"
-          "DELETE"
-        when "new", "edit"
-          "GET"
-        else
-          # Default to GET for unknown actions
-          "GET"
-        end
-      end
-
-      # Extract route path from args (first string/symbol argument)
-      def extract_route_path(args)
-        return nil if args.empty?
-
-        first_arg = args.first
-        case first_arg&.type
-        when :str
-          first_arg.children.first
-        when :sym
-          "/#{first_arg.children.first}"
         else
           nil
         end

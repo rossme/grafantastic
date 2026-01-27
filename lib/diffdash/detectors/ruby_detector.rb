@@ -36,7 +36,6 @@ module Diffdash
         signals = []
         signals.concat(extract_logs(visitor))
         signals.concat(extract_metrics(visitor))
-        signals.concat(extract_endpoints(visitor))
 
         {
           signals: signals,
@@ -72,10 +71,6 @@ module Diffdash
 
       def extract_metrics(visitor)
         Signals::MetricExtractor.extract(visitor)
-      end
-
-      def extract_endpoints(visitor)
-        Signals::EndpointExtractor.extract(visitor)
       end
 
       def default_structure
