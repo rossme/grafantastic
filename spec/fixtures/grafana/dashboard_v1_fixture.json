@@ -61,7 +61,7 @@
           },
           "query": "label_values({app!=\"\"}, app)",
           "refresh": 1,
-          "includeAll": true,
+          "includeAll": false,
           "multi": false,
           "current": {
             "text": "diffdash",

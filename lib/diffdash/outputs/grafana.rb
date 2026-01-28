@@ -114,7 +114,7 @@ module Diffdash
           datasource: { type: "loki", uid: "${datasource_loki}" },
           query: "label_values({app!=\"\"}, app)",
           refresh: 1,
-          includeAll: true,
+          includeAll: false,  # Disable "All" option to force specific app selection
           multi: false,
           current: {
             text: default_app,
