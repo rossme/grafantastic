@@ -85,7 +85,7 @@
         },
         "options": {
           "mode": "markdown",
-          "content": "**Detected 1 log and 0 metrics** in your PR. No data yet? Here's how to see your signals:\n1. **Deploy** this PR to your staging environment\n2. **Trigger** the code path (hit the endpoint, enqueue the job, etc.)\n3. **Wait** ~30 seconds for data to appear, then refresh this dashboard"
+          "content": "**Detected 1 log and 0 metrics** in your PR. [View PR](https://github.com/rossme/diffdash/tree/contract-dashboard)\n\nNo data yet? **Deploy** this PR, **trigger** the code path, then **wait** ~30s and refresh."
         }
       },
       {

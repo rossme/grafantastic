@@ -346,6 +346,11 @@ module Diffdash
       def getting_started_panel(panel_id, signal_bundle)
         log_count = signal_bundle.logs&.size || 0
         metric_count = signal_bundle.metrics&.size || 0
+        pr_link = build_pr_link(signal_bundle)
+
+        content = "**Detected #{log_count} log#{log_count == 1 ? '' : 's'} and #{metric_count} metric#{metric_count == 1 ? '' : 's'}** in your PR."
+        content += " [View PR](#{pr_link})" if pr_link
+        content += "\n\nNo data yet? **Deploy** this PR, **trigger** the code path, then **wait** ~30s and refresh."
 
         {
           id: panel_id,
@@ -354,14 +359,36 @@ module Diffdash
           gridPos: { x: 0, y: 0, w: 24, h: 3 },
           options: {
             mode: "markdown",
-            content: <<~MARKDOWN.strip
-              **Detected #{log_count} log#{log_count == 1 ? '' : 's'} and #{metric_count} metric#{metric_count == 1 ? '' : 's'}** in your PR. No data yet? Here's how to see your signals:
-              1. **Deploy** this PR to your staging environment
-              2. **Trigger** the code path (hit the endpoint, enqueue the job, etc.)
-              3. **Wait** ~30 seconds for data to appear, then refresh this dashboard
-            MARKDOWN
+            content: content
           }
         }
+      end
+
+      def build_pr_link(signal_bundle)
+        change_set = signal_bundle.metadata[:change_set]
+        return nil unless change_set
+
+        branch = change_set[:branch_name]
+        return nil unless branch
+
+        # Try to get repo URL from git remote
+        begin
+          remote_url = `git config --get remote.origin.url`.strip
+          return nil if remote_url.empty?
+
+          # Convert SSH or HTTPS git URL to GitHub web URL
+          if remote_url.match(%r{github\.com[:/](.+?)(?:\.git)?$})
+            repo_path = $1
+            # If branch looks like a PR branch, link to pulls, otherwise link to branch
+            if ENV["GITHUB_HEAD_REF"] || ENV["CI"]
+              "https://github.com/#{repo_path}/pulls"
+            else
+              "https://github.com/#{repo_path}/tree/#{branch}"
+            end
+          end
+        rescue
+          nil
+        end
       end
 
       # Helper methods for rendering
