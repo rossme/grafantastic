@@ -506,6 +506,7 @@ jobs:
           DIFFDASH_GRAFANA_TOKEN: ${{ secrets.DIFFDASH_GRAFANA_TOKEN }}
           DIFFDASH_GRAFANA_FOLDER_ID: ${{ secrets.DIFFDASH_GRAFANA_FOLDER_ID }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: diffdash --verbose
 ```
 

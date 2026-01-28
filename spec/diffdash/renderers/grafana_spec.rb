@@ -79,7 +79,7 @@ RSpec.describe Diffdash::Outputs::Grafana do
         text_panels = panels.select { |p| p[:type] == "text" }
 
         expect(text_panels.size).to eq(1)
-        expect(text_panels.first[:title]).to eq("🚀 Getting Started")
+        expect(text_panels.first[:options][:content]).to include("**Diffdash**")
       end
 
       it "includes folder ID" do
@@ -411,6 +411,139 @@ RSpec.describe Diffdash::Outputs::Grafana do
 
         env_var = result[:dashboard][:templating][:list].find { |v| v[:name] == "env" }
         expect(env_var[:current]).to eq({ text: "development", value: "development" })
+      end
+    end
+
+    context "Getting Started panel with PR links" do
+      let(:log_signal) do
+        Diffdash::Engine::SignalQuery.new(
+          type: :logs,
+          name: "test_log",
+          time_range: { from: "now-30m", to: "now" },
+          source_file: "/app/test.rb",
+          defining_class: "TestClass",
+          metadata: { level: "info", line: 1 }
+        )
+      end
+
+      subject(:renderer) { described_class.new(title: "Test Dashboard", folder_id: nil) }
+
+      before do
+        # Mock git remote URL
+        allow_any_instance_of(Object).to receive(:`).with("git config --get remote.origin.url")
+          .and_return("git@github.com:rossme/diffdash-test-app.git\n")
+      end
+
+      it "includes PR link with number when GITHUB_PR_NUMBER is set" do
+        ENV["GITHUB_PR_NUMBER"] = "42"
+        
+        bundle = Diffdash::Engine::SignalBundle.new(
+          logs: [log_signal],
+          metadata: {
+            time_range: { from: "now-30m", to: "now" },
+            change_set: { branch_name: "feature/test" }
+          }
+        )
+
+        result = renderer.render(bundle)
+        getting_started = result[:dashboard][:panels].find { |p| p[:type] == "text" }
+        
+        expect(getting_started[:options][:content]).to eq("**Diffdash** — [View PR](https://github.com/rossme/diffdash-test-app/pull/42)")
+        
+        ENV.delete("GITHUB_PR_NUMBER")
+      end
+
+      it "extracts PR number from GITHUB_REF" do
+        ENV["GITHUB_REF"] = "refs/pull/123/merge"
+        
+        bundle = Diffdash::Engine::SignalBundle.new(
+          logs: [log_signal],
+          metadata: {
+            time_range: { from: "now-30m", to: "now" },
+            change_set: { branch_name: "feature/test" }
+          }
+        )
+
+        result = renderer.render(bundle)
+        getting_started = result[:dashboard][:panels].find { |p| p[:type] == "text" }
+        
+        expect(getting_started[:options][:content]).to eq("**Diffdash** — [View PR](https://github.com/rossme/diffdash-test-app/pull/123)")
+        
+        ENV.delete("GITHUB_REF")
+      end
+
+      it "links to /pulls when in CI without PR number" do
+        ENV["CI"] = "true"
+        
+        bundle = Diffdash::Engine::SignalBundle.new(
+          logs: [log_signal],
+          metadata: {
+            time_range: { from: "now-30m", to: "now" },
+            change_set: { branch_name: "feature/test" }
+          }
+        )
+
+        result = renderer.render(bundle)
+        getting_started = result[:dashboard][:panels].find { |p| p[:type] == "text" }
+        
+        expect(getting_started[:options][:content]).to eq("**Diffdash** — [View PR](https://github.com/rossme/diffdash-test-app/pulls)")
+        
+        ENV.delete("CI")
+      end
+
+      it "links to branch tree when running locally" do
+        bundle = Diffdash::Engine::SignalBundle.new(
+          logs: [log_signal],
+          metadata: {
+            time_range: { from: "now-30m", to: "now" },
+            change_set: { branch_name: "feature/test-branch" }
+          }
+        )
+
+        result = renderer.render(bundle)
+        getting_started = result[:dashboard][:panels].find { |p| p[:type] == "text" }
+        
+        expect(getting_started[:options][:content]).to eq("**Diffdash** — [View PR](https://github.com/rossme/diffdash-test-app/tree/feature/test-branch)")
+      end
+
+      it "handles HTTPS git URLs" do
+        allow_any_instance_of(Object).to receive(:`).with("git config --get remote.origin.url")
+          .and_return("https://github.com/rossme/diffdash-test-app.git\n")
+        
+        ENV["GITHUB_PR_NUMBER"] = "99"
+        
+        bundle = Diffdash::Engine::SignalBundle.new(
+          logs: [log_signal],
+          metadata: {
+            time_range: { from: "now-30m", to: "now" },
+            change_set: { branch_name: "feature/test" }
+          }
+        )
+
+        result = renderer.render(bundle)
+        getting_started = result[:dashboard][:panels].find { |p| p[:type] == "text" }
+        
+        expect(getting_started[:options][:content]).to eq("**Diffdash** — [View PR](https://github.com/rossme/diffdash-test-app/pull/99)")
+        
+        ENV.delete("GITHUB_PR_NUMBER")
+      end
+
+      it "does not include PR link when git remote is unavailable" do
+        allow_any_instance_of(Object).to receive(:`).with("git config --get remote.origin.url")
+          .and_return("")
+        
+        bundle = Diffdash::Engine::SignalBundle.new(
+          logs: [log_signal],
+          metadata: {
+            time_range: { from: "now-30m", to: "now" },
+            change_set: { branch_name: "feature/test" }
+          }
+        )
+
+        result = renderer.render(bundle)
+        getting_started = result[:dashboard][:panels].find { |p| p[:type] == "text" }
+        
+        expect(getting_started[:options][:content]).to eq("**Diffdash**")
       end
     end
   end

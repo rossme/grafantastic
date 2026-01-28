@@ -344,19 +344,19 @@ module Diffdash
       end
 
       def getting_started_panel(panel_id, signal_bundle)
-        log_count = signal_bundle.logs&.size || 0
-        metric_count = signal_bundle.metrics&.size || 0
         pr_link = build_pr_link(signal_bundle)
 
-        content = "**Detected #{log_count} log#{log_count == 1 ? '' : 's'} and #{metric_count} metric#{metric_count == 1 ? '' : 's'}** in your PR."
-        content += " [View PR](#{pr_link})" if pr_link
-        content += "\n\nNo data yet? **Deploy** this PR, **trigger** the code path, then **wait** ~30s and refresh."
+        content = if pr_link
+                    "**Diffdash** — [View PR](#{pr_link})"
+                  else
+                    "**Diffdash**"
+                  end
 
         {
           id: panel_id,
           type: "text",
-          title: "🚀 Getting Started",
-          gridPos: { x: 0, y: 0, w: 24, h: 3 },
+          title: "",
+          gridPos: { x: 0, y: 0, w: 24, h: 2 },
           options: {
             mode: "markdown",
             content: content
@@ -379,8 +379,14 @@ module Diffdash
           # Convert SSH or HTTPS git URL to GitHub web URL
           if remote_url.match(%r{github\.com[:/](.+?)(?:\.git)?$})
             repo_path = $1
-            # If branch looks like a PR branch, link to pulls, otherwise link to branch
-            if ENV["GITHUB_HEAD_REF"] || ENV["CI"]
+            
+            # Try to get PR number from GitHub Actions environment
+            pr_number = ENV["GITHUB_PR_NUMBER"] || 
+                       (ENV["GITHUB_REF"]&.match(/refs\/pull\/(\d+)\/merge/)&.[](1))
+            
+            if pr_number
+              "https://github.com/#{repo_path}/pull/#{pr_number}"
+            elsif ENV["GITHUB_HEAD_REF"] || ENV["CI"]
               "https://github.com/#{repo_path}/pulls"
             else
               "https://github.com/#{repo_path}/tree/#{branch}"

@@ -76,16 +76,16 @@
       {
         "id": 1,
         "type": "text",
-        "title": "🚀 Getting Started",
+        "title": "",
         "gridPos": {
           "x": 0,
           "y": 0,
           "w": 24,
-          "h": 3
+          "h": 2
         },
         "options": {
           "mode": "markdown",
-          "content": "**Detected 1 log and 0 metrics** in your PR. [View PR](https://github.com/rossme/diffdash/tree/contract-dashboard)\n\nNo data yet? **Deploy** this PR, **trigger** the code path, then **wait** ~30s and refresh."
+          "content": "**Diffdash** — [View PR](https://github.com/rossme/diffdash/tree/contract-dashboard)"
         }
       },
       {
