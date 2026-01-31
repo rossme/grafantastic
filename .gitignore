@@ -27,3 +27,4 @@ log/
 .env
 .env.local
 elastic-agent-*
+*.gem
