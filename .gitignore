@@ -26,3 +26,4 @@ log/
 # Environment
 .env
 .env.local
+elastic-agent-*
