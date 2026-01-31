@@ -163,11 +163,11 @@ module Diffdash
         panels = []
         panel_idx = 0
         
-        # Log panels
+        # Log panels (use search type to show actual log entries)
         signal_bundle.logs.each_with_index do |signal, idx|
           panels << {
             version: "8.0.0",
-            type: "visualization",
+            type: "search",
             gridData: grid_position(panel_idx),
             panelIndex: panel_idx.to_s,
             embeddableConfig: {},
@@ -176,7 +176,7 @@ module Diffdash
           panel_idx += 1
         end
         
-        # Metric panels
+        # Metric panels (use visualization type)
         signal_bundle.metrics.each_with_index do |signal, idx|
           panels << {
             version: "8.0.0",
@@ -194,13 +194,23 @@ module Diffdash
 
       def build_visualization_references(signal_bundle)
         references = []
-        total_signals = signal_bundle.logs.size + signal_bundle.metrics.size
+        log_count = signal_bundle.logs.size
         
-        total_signals.times do |idx|
+        # Log references (search type)
+        log_count.times do |idx|
           references << {
             name: "panel_#{idx}",
+            type: "search",
+            id: generate_id("search-#{idx}")
+          }
+        end
+        
+        # Metric references (visualization type)
+        signal_bundle.metrics.size.times do |idx|
+          references << {
+            name: "panel_#{log_count + idx}",
             type: "visualization",
-            id: generate_id("viz-#{idx}")
+            id: generate_id("viz-#{log_count + idx}")
           }
         end
         
@@ -209,46 +219,17 @@ module Diffdash
 
       def log_visualization(signal, idx)
         viz_id = generate_id("viz-#{idx}")
+        search_id = generate_id("search-#{idx}")
         
+        # Use a saved search which shows actual log entries
         {
-          type: "visualization",
-          id: viz_id,
+          type: "search",
+          id: search_id,
           attributes: {
             title: "Log: #{truncate(signal.name, 30)}",
             description: "Source: #{signal.defining_class}",
-            visState: JSON.generate({
-              title: "Log: #{signal.name}",
-              type: "table",
-              aggs: [
-                {
-                  id: "1",
-                  enabled: true,
-                  type: "count",
-                  schema: "metric"
-                },
-                {
-                  id: "2",
-                  enabled: true,
-                  type: "terms",
-                  schema: "bucket",
-                  params: {
-                    field: "message.keyword",
-                    size: 100,
-                    order: "desc",
-                    orderBy: "1"
-                  }
-                }
-              ],
-              params: {
-                perPage: 10,
-                showPartialRows: false,
-                showMetricsAtAllLevels: false,
-                sort: { columnIndex: nil, direction: nil },
-                showTotal: false,
-                totalFunc: "sum"
-              }
-            }),
-            uiStateJSON: "{}",
+            columns: ["message", "@timestamp"],
+            sort: [["@timestamp", "desc"]],
             kibanaSavedObjectMeta: {
               searchSourceJSON: JSON.generate({
                 query: {
@@ -256,7 +237,9 @@ module Diffdash
                   language: "kuery"
                 },
                 filter: [],
-                indexRefName: "kibanaSavedObjectMeta.searchSourceJSON.index"
+                indexRefName: "kibanaSavedObjectMeta.searchSourceJSON.index",
+                highlightAll: true,
+                version: true
               })
             }
           },
