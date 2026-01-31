@@ -44,6 +44,7 @@ require_relative "diffdash/engine/engine"
 require_relative "diffdash/outputs/base"
 require_relative "diffdash/outputs/grafana"
 require_relative "diffdash/outputs/datadog"
+require_relative "diffdash/outputs/kibana"
 require_relative "diffdash/outputs/json"
 
 # CLI

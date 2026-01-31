@@ -182,10 +182,22 @@ module Diffdash
               app_name: @config.app_name,
               pr_deploy_annotation_expr: @config.pr_deploy_annotation_expr
             )
+          when :datadog
+            Outputs::Datadog.new(
+              title: title,
+              dry_run: @dry_run,
+              verbose: @verbose
+            )
+          when :kibana
+            Outputs::Kibana.new(
+              title: title,
+              dry_run: @dry_run,
+              verbose: @verbose
+            )
           when :json
             Outputs::Json.new
           else
-            raise ArgumentError, "Unknown output '#{output}'. Valid outputs: grafana, json."
+            raise ArgumentError, "Unknown output '#{output}'. Valid outputs: grafana, datadog, kibana, json."
           end
         end
       end
@@ -220,6 +232,8 @@ module Diffdash
       def adapter_key(adapter)
         case adapter
         when Outputs::Grafana then :grafana
+        when Outputs::Kibana then :kibana
+        when Outputs::Datadog then :datadog
         when Outputs::Json then :json
         else
           class_name = adapter.class.name
@@ -444,6 +458,8 @@ module Diffdash
 
             outputs:
               - grafana
+              - datadog
+              - kibana
               - json
 
             default_env: production
@@ -454,7 +470,7 @@ module Diffdash
             DIFFDASH_GRAFANA_URL               Grafana instance URL
             DIFFDASH_GRAFANA_TOKEN             Grafana API token (required, env only)
             DIFFDASH_GRAFANA_FOLDER_ID         Target folder ID
-            DIFFDASH_OUTPUTS                   Comma-separated outputs (default: grafana)
+            DIFFDASH_OUTPUTS                   Comma-separated outputs (grafana, datadog, kibana, json)
             DIFFDASH_DRY_RUN                   Set to 'true' to force dry-run mode
             DIFFDASH_DEFAULT_ENV               Default environment filter
             DIFFDASH_PR_COMMENT                Set to 'false' to disable PR comments
