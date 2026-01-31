@@ -28,9 +28,29 @@ module Diffdash
       end
 
       def upload(payload)
-        output_file = "diffdash-kibana-dashboard.ndjson"
-        
-        # Convert to NDJSON format for Kibana import
+        ndjson_content = build_ndjson(payload)
+
+        if @dry_run
+          return export_to_file(payload, ndjson_content)
+        end
+
+        # Try API upload if credentials are configured
+        if kibana_configured?
+          upload_via_api(payload, ndjson_content)
+        else
+          export_to_file(payload, ndjson_content)
+        end
+      end
+
+      private
+
+      def kibana_configured?
+        ENV["DIFFDASH_KIBANA_URL"] && 
+          (ENV["DIFFDASH_KIBANA_API_KEY"] || 
+           (ENV["DIFFDASH_KIBANA_USERNAME"] && ENV["DIFFDASH_KIBANA_PASSWORD"]))
+      end
+
+      def build_ndjson(payload)
         ndjson_lines = []
         
         # Add index pattern
@@ -44,21 +64,40 @@ module Diffdash
         # Add dashboard
         ndjson_lines << JSON.generate(payload[:dashboard])
         
-        ndjson_content = ndjson_lines.join("\n")
+        ndjson_lines.join("\n")
+      end
+
+      def upload_via_api(payload, ndjson_content)
+        client = Clients::Kibana.new
+        log_verbose("Validating Kibana connection...")
+        client.health_check!
+        log_verbose("Connected to Kibana at #{client.url}")
+
+        result = client.import_saved_objects(ndjson_content)
+        
+        if result[:success]
+          log_verbose("Dashboard imported successfully (#{result[:successCount]} objects)")
+        else
+          log_verbose("Import completed with errors: #{result[:errors]}")
+        end
+
+        { payload: payload, url: result[:url] }
+      end
+
+      def export_to_file(payload, ndjson_content)
+        output_file = "diffdash-kibana-dashboard.ndjson"
 
         if @dry_run
           log_verbose("Dry run - dashboard NDJSON not written to file")
-          log_verbose("Dashboard NDJSON:\n#{ndjson_content}")
         else
           File.write(output_file, ndjson_content)
           log_verbose("Kibana dashboard NDJSON written to: #{output_file}")
           log_verbose("Import via: Kibana → Stack Management → Saved Objects → Import")
+          log_verbose("Or set DIFFDASH_KIBANA_URL and credentials for API upload")
         end
 
         { payload: payload, url: nil, file: output_file }
       end
-
-      private
 
       def build_dashboard(signal_bundle, dashboard_id)
         viz_references = build_visualization_references(signal_bundle)
