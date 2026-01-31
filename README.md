@@ -411,7 +411,7 @@ end
 
 class PaymentProcessor < BaseProcessor
   include Loggable
-
+  
   def charge
     StatsD.increment("payment.charged")  # ✅ Detected
   end

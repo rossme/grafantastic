@@ -28,18 +28,28 @@ module Diffdash
       end
 
       # Validates connection to Kibana
+      # Tries multiple endpoints since Elastic Cloud Serverless uses different paths
       def health_check!
-        response = connection.get("/api/status")
+        # Try endpoints in order of preference
+        endpoints = [
+          "/api/status",                    # Standard Kibana
+          "/api/saved_objects/_find?type=dashboard&per_page=1"  # Elastic Cloud Serverless
+        ]
 
-        unless response.success?
-          if response.status == 401
+        last_error = nil
+        endpoints.each do |endpoint|
+          response = connection.get(endpoint)
+          
+          if response.success?
+            return true
+          elsif response.status == 401
             raise ConnectionError, "Kibana authentication failed (401): Check your credentials"
           else
-            raise ConnectionError, "Kibana health check failed (#{response.status}): #{response.body}"
+            last_error = "#{response.status}: #{response.body}"
           end
         end
 
-        true
+        raise ConnectionError, "Kibana health check failed (#{last_error})"
       rescue Faraday::Error => e
         raise ConnectionError, "Cannot connect to Kibana at #{@url}: #{e.message}"
       end
