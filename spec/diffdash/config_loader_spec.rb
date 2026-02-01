@@ -119,10 +119,10 @@ RSpec.describe Diffdash::ConfigLoader do
       expect(loader.outputs).to eq([:grafana, :json])
     end
 
-    it "defaults to [:grafana] when not configured" do
+    it "returns empty array when not configured" do
       create_config_file("")
       loader = described_class.new(working_dir: temp_dir)
-      expect(loader.outputs).to eq([:grafana])
+      expect(loader.outputs).to eq([])
     end
 
     it "prioritizes DIFFDASH_OUTPUTS env var over file config" do
@@ -258,7 +258,7 @@ RSpec.describe Diffdash::ConfigLoader do
         loader = described_class.new(working_dir: temp_dir)
       end.to output(/Warning/).to_stderr
       expect(loader.default_env).to eq("production")
-      expect(loader.outputs).to eq([:grafana])
+      expect(loader.outputs).to eq([])
     end
   end
 
