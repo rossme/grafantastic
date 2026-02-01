@@ -166,7 +166,9 @@ diffdash [output] [options]
 
 | Command | Description |
 |---------|-------------|
-| `folders` | List available Grafana folders |
+| `lint` | Check for observability best practices |
+| `grafana folders` | List available Grafana folders |
+| `kibana folders` | List available Kibana spaces |
 
 ### Options
 
@@ -190,6 +192,14 @@ diffdash kibana --verbose
 
 # Generate Datadog dashboard without uploading
 diffdash datadog --dry-run
+
+# List available folders/spaces
+diffdash grafana folders
+diffdash kibana folders
+
+# Check for observability best practices
+diffdash lint
+diffdash lint --verbose
 
 # See detected signals without uploading
 diffdash --list-signals
@@ -297,6 +307,58 @@ Signals are extracted from:
 - Parent classes (up to 5 levels)
 - Included modules
 - Prepended modules
+
+---
+
+## Linting
+
+The `diffdash lint` command checks for observability best practices.
+
+### Interpolated Logs
+
+Logs with string interpolation are harder to query:
+
+```ruby
+# ⚠️ Interpolated - hard to match in Loki/Kibana
+logger.info("User #{user.id} logged in")
+# Matches on: "User " and " logged in"
+
+# ✅ Structured - exact match
+logger.info("user_logged_in", user_id: user.id)
+# Matches on: "user_logged_in"
+```
+
+### Usage
+
+```bash
+# Check for issues
+diffdash lint
+
+# Show details for each issue
+diffdash lint --verbose
+```
+
+### Output
+
+```
+[diffdash] Linting observability patterns...
+[diffdash] Analyzing 4 files...
+
+Found 3 logs with string interpolation.
+Consider structured logging for better observability matching.
+
+Example:
+  Before: logger.info("User #{user.id} logged in")
+  After:  logger.info("user_logged_in", user_id: user.id)
+
+Run 'diffdash lint --verbose' for details.
+```
+
+During dashboard generation, a warning is shown if interpolated logs are found:
+
+```
+[diffdash] ⚠ Found 3 interpolated logs (run 'diffdash lint' for suggestions)
+```
 
 ---
 
@@ -451,6 +513,20 @@ For a complete example with logs, metrics, and CI integration, see:
 - Verify `DIFFDASH_KIBANA_INDEX_PATTERN` matches your actual data stream
 - Check the time range in Kibana includes recent data
 - Ensure logs are being shipped to Elasticsearch
+
+### Interpolated logs warning
+
+Logs with interpolation are detected but harder to query:
+
+```ruby
+# ⚠️ Interpolated - harder to match
+logger.info("User #{user.id} logged in")
+
+# ✅ Structured - exact match
+logger.info("user_logged_in", user_id: user.id)
+```
+
+Run `diffdash lint --verbose` to see all interpolated logs.
 
 ### Dynamic metrics warning
 
