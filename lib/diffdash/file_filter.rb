@@ -55,13 +55,13 @@ module Diffdash
       true
     end
 
-    # Class-level convenience method for backwards compatibility.
+    # Class-level convenience method.
     # Uses default filtering rules (no config).
     def self.filter(files)
       new.filter(files)
     end
 
-    # Class-level convenience method for backwards compatibility.
+    # Class-level convenience method.
     # Uses default filtering rules (no config).
     def self.include_file?(file_path)
       new.include_file?(file_path)

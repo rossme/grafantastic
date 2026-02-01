@@ -18,5 +18,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hard-fail on missing branch name
 
 ### Removed
-- Deprecated Grafana renderer wrapper
-- Deprecated CLI wrapper
+- Old Grafana renderer wrapper (use `Diffdash::Outputs::Grafana`)
+- Old CLI wrapper (use `Diffdash::CLI::Runner`)

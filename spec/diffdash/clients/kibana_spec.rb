@@ -20,7 +20,7 @@ RSpec.describe Diffdash::Clients::Kibana do
       public_methods = client.public_methods(false)
 
       # Expected: HTTP operations only
-      expect(public_methods).to contain_exactly(:health_check!, :import_saved_objects, :list_dashboards, :url)
+      expect(public_methods).to contain_exactly(:health_check!, :import_saved_objects, :list_dashboards, :list_spaces, :url)
     end
 
     it "accepts prepared NDJSON content without modification" do

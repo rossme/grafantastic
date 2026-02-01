@@ -48,9 +48,11 @@ diffdash datadog          # Generate Datadog dashboard
 diffdash json             # Output raw signal JSON
 
 diffdash grafana --dry-run    # Generate without uploading
+diffdash grafana folders      # List Grafana folders
+diffdash kibana folders       # List Kibana spaces
+diffdash lint                 # Check for observability best practices
+diffdash lint --verbose       # Show details for each issue
 diffdash --list-signals       # Show detected signals
-diffdash --verbose            # Detailed output
-diffdash folders              # List Grafana folders
 ```
 
 ## What It Detects

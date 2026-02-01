@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe Diffdash::FileFilter do
-  describe "class methods (backwards compatibility)" do
+  describe "class methods" do
     describe ".filter" do
       it "includes regular Ruby files" do
         files = ["/app/models/user.rb", "/app/services/payment.rb"]

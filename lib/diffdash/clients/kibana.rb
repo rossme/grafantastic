@@ -114,6 +114,17 @@ module Diffdash
         result["saved_objects"] || []
       end
 
+      # List available Kibana spaces
+      def list_spaces
+        response = connection.get("/api/spaces/space")
+
+        unless response.success?
+          raise Error, "Failed to list spaces: #{response.body}"
+        end
+
+        JSON.parse(response.body)
+      end
+
       private
 
       def connection

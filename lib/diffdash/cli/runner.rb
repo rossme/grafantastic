@@ -5,8 +5,9 @@ module Diffdash
     # Thin CLI glue. Orchestrates engine + output adapters.
     class Runner
       VALID_OPTIONS = %w[--dry-run --verbose -v --help -h --version --config --list-signals].freeze
-      VALID_SUBCOMMANDS = %w[folders rspec lint].freeze
+      VALID_SUBCOMMANDS = %w[rspec lint].freeze
       OUTPUT_SUBCOMMANDS = %w[grafana datadog kibana json].freeze
+      NESTED_SUBCOMMANDS = %w[folders].freeze
 
       def self.run(args)
         new(args).execute
@@ -23,6 +24,7 @@ module Diffdash
         @list_signals = args.include?('--list-signals')
         @subcommand = extract_subcommand(args)
         @output_subcommand = extract_output_subcommand(args)
+        @nested_subcommand = extract_nested_subcommand(args)
         @dynamic_metrics = []
       end
 
@@ -49,12 +51,24 @@ module Diffdash
 
         # Handle subcommands
         case @subcommand
-        when 'folders'
-          return list_grafana_folders
         when 'rspec'
           return run_rspec
         when 'lint'
           return run_lint
+        end
+
+        # Handle nested subcommands (e.g., diffdash grafana folders)
+        if @nested_subcommand == 'folders'
+          case @output_subcommand
+          when 'grafana'
+            return list_grafana_folders
+          when 'kibana'
+            return list_kibana_spaces
+          else
+            warn "ERROR: 'folders' is only supported for 'grafana' or 'kibana'"
+            warn "Usage: diffdash grafana folders"
+            return 1
+          end
         end
 
         # Require an output to be specified (subcommand, env var, or config)
@@ -154,6 +168,10 @@ module Diffdash
         args.find { |arg| OUTPUT_SUBCOMMANDS.include?(arg) }
       end
 
+      def extract_nested_subcommand(args)
+        args.find { |arg| NESTED_SUBCOMMANDS.include?(arg) }
+      end
+
       def extract_config_path(args)
         idx = args.index('--config')
         return nil unless idx
@@ -174,7 +192,10 @@ module Diffdash
             next true
           end
 
-          VALID_OPTIONS.include?(arg) || VALID_SUBCOMMANDS.include?(arg) || OUTPUT_SUBCOMMANDS.include?(arg)
+          VALID_OPTIONS.include?(arg) ||
+            VALID_SUBCOMMANDS.include?(arg) ||
+            OUTPUT_SUBCOMMANDS.include?(arg) ||
+            NESTED_SUBCOMMANDS.include?(arg)
         end
       end
 
@@ -310,10 +331,34 @@ module Diffdash
             puts "  ID: #{folder['id'].to_s.ljust(6)} Title: #{folder['title']}"
           end
           puts ''
-          puts 'Set DIFFDASH_GRAFANA_FOLDER_ID in your .env file to use a specific folder'
+          puts 'Set DIFFDASH_GRAFANA_FOLDER_ID in diffdash.yml or env var to use a specific folder'
         end
         0
       rescue Clients::Grafana::ConnectionError => e
+        warn "ERROR: #{e.message}"
+        1
+      rescue Error => e
+        warn "ERROR: #{e.message}"
+        1
+      end
+
+      def list_kibana_spaces
+        client = Clients::Kibana.new
+        spaces = client.list_spaces
+
+        if spaces.empty?
+          puts 'No spaces found (dashboards will be created in default space)'
+        else
+          puts 'Available Kibana spaces:'
+          puts ''
+          spaces.each do |space|
+            puts "  ID: #{space['id'].to_s.ljust(20)} Name: #{space['name']}"
+          end
+          puts ''
+          puts 'Set DIFFDASH_KIBANA_SPACE_ID in diffdash.yml or env var to use a specific space'
+        end
+        0
+      rescue Clients::Kibana::ConnectionError => e
         warn "ERROR: #{e.message}"
         1
       rescue Error => e
@@ -510,9 +555,10 @@ module Diffdash
             (none)       Use outputs from config or DIFFDASH_OUTPUTS env var
 
           Commands:
-            lint         Check for observability best practices
-            folders      List available Grafana folders
-            rspec [args] Run the RSpec suite (passes args through)
+            lint              Check for observability best practices
+            grafana folders   List available Grafana folders
+            kibana folders    List available Kibana spaces
+            rspec [args]      Run the RSpec suite (passes args through)
 
           Options:
             --config FILE    Path to diffdash.yml configuration file
@@ -526,6 +572,8 @@ module Diffdash
             diffdash grafana              # Generate Grafana dashboard
             diffdash kibana --verbose     # Generate Kibana dashboard with details
             diffdash datadog --dry-run    # Generate Datadog JSON without uploading
+            diffdash grafana folders      # List available Grafana folders
+            diffdash kibana folders       # List available Kibana spaces
             diffdash lint                 # Check for observability issues
             diffdash lint --verbose       # Show details for each issue
             diffdash --list-signals       # Show what would be detected
