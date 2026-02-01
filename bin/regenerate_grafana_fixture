@@ -1,16 +1,16 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "json"
-require_relative "../lib/diffdash"
+require 'json'
+require_relative '../lib/diffdash'
 
 signal = Diffdash::Engine::SignalQuery.new(
   type: :logs,
-  name: "hello_from_grape_api",
-  time_range: { from: "now-30m", to: "now" },
-  source_file: "/app/api/v1/base.rb",
-  defining_class: "V1::Base",
-  metadata: { level: "info", line: 42 }
+  name: 'hello_from_grape_api',
+  time_range: { from: 'now-30m', to: 'now' },
+  source_file: '/app/api/v1/base.rb',
+  defining_class: 'V1::Base',
+  metadata: { level: 'info', line: 42 }
 )
 
 bundle = Diffdash::Engine::SignalBundle.new(
@@ -18,18 +18,18 @@ bundle = Diffdash::Engine::SignalBundle.new(
   metrics: [],
   traces: [],
   metadata: {
-    time_range: { from: "now-30m", to: "now" },
-    change_set: { branch_name: "contract-dashboard" }
+    time_range: { from: 'now-30m', to: 'now' },
+    change_set: { branch_name: 'contract-dashboard' }
   }
 )
 
 renderer = Diffdash::Outputs::Grafana.new(
-  title: "contract-dashboard",
+  title: 'contract-dashboard',
   folder_id: 123
 )
 
 output = renderer.render(bundle)
-fixture_path = File.expand_path("../spec/fixtures/grafana/dashboard_v1_fixture.json", __dir__)
+fixture_path = File.expand_path('../spec/fixtures/grafana/dashboard_v1_fixture.json', __dir__)
 
 File.write(fixture_path, JSON.pretty_generate(output))
 puts "Updated #{fixture_path}"

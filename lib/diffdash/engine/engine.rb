@@ -6,7 +6,7 @@ module Diffdash
     # Produces structured signal intent from diff context.
     class Engine
       # Default to last 30 minutes - optimized for smoke testing freshly deployed code
-      DEFAULT_TIME_RANGE = { from: "now-30m", to: "now" }.freeze
+      DEFAULT_TIME_RANGE = { from: 'now-30m', to: 'now' }.freeze
 
       attr_reader :dynamic_metrics, :limit_warnings, :excluded_interpolated_count
 
@@ -30,7 +30,7 @@ module Diffdash
         signals = validator.truncate_and_validate(signals)
         @limit_warnings = validator.warnings
 
-        bundle = SignalBundle.new(
+        SignalBundle.new(
           logs: build_queries(signals, :logs, time_range),
           metrics: build_queries(signals, :metrics, time_range),
           traces: [],
@@ -42,8 +42,6 @@ module Diffdash
             excluded_interpolated_count: @excluded_interpolated_count
           }
         )
-
-        bundle
       end
 
       private

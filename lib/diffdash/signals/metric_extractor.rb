@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative "../signal/counter"
-require_relative "../signal/gauge"
-require_relative "../signal/histogram"
-require_relative "../signal/summary"
+require_relative '../signal/counter'
+require_relative '../signal/gauge'
+require_relative '../signal/histogram'
+require_relative '../signal/summary'
 
 module Diffdash
   module Signals
@@ -15,12 +15,12 @@ module Diffdash
 
             # Create typed signal based on metric_type
             signal_class = case metric_call[:metric_type]
-                          when :counter then Diffdash::Signal::Counter
-                          when :gauge then Diffdash::Signal::Gauge
-                          when :histogram then Diffdash::Signal::Histogram
-                          when :summary then Diffdash::Signal::Summary
-                          else Diffdash::Signal::Counter # Default to counter
-                          end
+                           when :counter then Diffdash::Signal::Counter
+                           when :gauge then Diffdash::Signal::Gauge
+                           when :histogram then Diffdash::Signal::Histogram
+                           when :summary then Diffdash::Signal::Summary
+                           else Diffdash::Signal::Counter # Default to counter
+                           end
 
             signal_class.new(
               name: metric_call[:name],

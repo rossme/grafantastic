@@ -24,8 +24,6 @@ module Diffdash
             source_file: signal.source_file,
             defining_class: signal.defining_class
           )
-        else
-          nil
         end
       end
     end

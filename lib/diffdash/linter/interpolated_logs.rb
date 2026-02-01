@@ -11,11 +11,11 @@ module Diffdash
     #
     class InterpolatedLogs < Base
       def rule_name
-        "interpolated-logs"
+        'interpolated-logs'
       end
 
       def description
-        "Logs with string interpolation are harder to query in observability tools"
+        'Logs with string interpolation are harder to query in observability tools'
       end
 
       # @param log_call [Hash] Contains :node, :event_name, :method, :receiver, :line, etc.
@@ -40,7 +40,7 @@ module Diffdash
           rule: rule_name,
           file: source_file,
           line: log_call[:line] || node.loc&.line,
-          message: "Log uses string interpolation",
+          message: 'Log uses string interpolation',
           suggestion: build_suggestion(static_parts, interpolations, log_call[:method]),
           context: {
             original: reconstruct_string(first_arg),
@@ -54,15 +54,15 @@ module Diffdash
 
       def extract_static_parts(dstr_node)
         dstr_node.children
-          .select { |c| c.type == :str }
-          .map { |c| c.children.first }
+                 .select { |c| c.type == :str }
+                 .map { |c| c.children.first }
       end
 
       def extract_interpolations(dstr_node)
         dstr_node.children
-          .reject { |c| c.type == :str }
-          .map { |c| extract_variable_name(c) }
-          .compact
+                 .reject { |c| c.type == :str }
+                 .map { |c| extract_variable_name(c) }
+                 .compact
       end
 
       def extract_variable_name(node)
@@ -81,11 +81,11 @@ module Diffdash
           end
         when :lvar, :ivar
           # local or instance variable
-          node.children.first.to_s.delete_prefix("@")
+          node.children.first.to_s.delete_prefix('@')
         when :str
           nil
         else
-          "value"
+          'value'
         end
       end
 
@@ -105,15 +105,15 @@ module Diffdash
       def build_suggestion(static_parts, interpolations, log_method)
         # Generate an event name from static parts
         event_name = static_parts
-          .join(" ")
-          .downcase
-          .gsub(/[^a-z0-9]+/, "_")
-          .gsub(/^_|_$/, "")
+                     .join(' ')
+                     .downcase
+                     .gsub(/[^a-z0-9]+/, '_')
+                     .gsub(/^_|_$/, '')
 
-        event_name = "log_event" if event_name.empty?
+        event_name = 'log_event' if event_name.empty?
 
         # Build keyword arguments from interpolations
-        kwargs = interpolations.map { |name| "#{name}: #{name}" }.join(", ")
+        kwargs = interpolations.map { |name| "#{name}: #{name}" }.join(', ')
 
         if kwargs.empty?
           "logger.#{log_method}(\"#{event_name}\")"

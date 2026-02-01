@@ -8,19 +8,19 @@ RSpec.describe Diffdash::ConfigLoader do
   end
 
   def create_config_file(content)
-    File.write(File.join(temp_dir, "diffdash.yml"), content)
+    File.write(File.join(temp_dir, 'diffdash.yml'), content)
   end
 
-  describe "#interpolated_logs" do
-    context "with no configuration" do
-      it "defaults to :include" do
+  describe '#interpolated_logs' do
+    context 'with no configuration' do
+      it 'defaults to :include' do
         loader = described_class.new(working_dir: temp_dir)
         expect(loader.interpolated_logs).to eq(:include)
       end
     end
 
-    context "with YAML configuration" do
-      it "returns :exclude when configured" do
+    context 'with YAML configuration' do
+      it 'returns :exclude when configured' do
         create_config_file(<<~YAML)
           signals:
             interpolated_logs: exclude
@@ -29,7 +29,7 @@ RSpec.describe Diffdash::ConfigLoader do
         expect(loader.interpolated_logs).to eq(:exclude)
       end
 
-      it "returns :warn when configured" do
+      it 'returns :warn when configured' do
         create_config_file(<<~YAML)
           signals:
             interpolated_logs: warn
@@ -38,7 +38,7 @@ RSpec.describe Diffdash::ConfigLoader do
         expect(loader.interpolated_logs).to eq(:warn)
       end
 
-      it "returns :include when configured" do
+      it 'returns :include when configured' do
         create_config_file(<<~YAML)
           signals:
             interpolated_logs: include
@@ -47,7 +47,7 @@ RSpec.describe Diffdash::ConfigLoader do
         expect(loader.interpolated_logs).to eq(:include)
       end
 
-      it "defaults to :include for invalid values" do
+      it 'defaults to :include for invalid values' do
         create_config_file(<<~YAML)
           signals:
             interpolated_logs: invalid_value
@@ -57,35 +57,35 @@ RSpec.describe Diffdash::ConfigLoader do
       end
     end
 
-    context "with environment variable" do
+    context 'with environment variable' do
       before do
         allow(ENV).to receive(:[]).and_call_original
       end
 
-      it "returns :exclude from env var" do
-        allow(ENV).to receive(:[]).with("DIFFDASH_INTERPOLATED_LOGS").and_return("exclude")
+      it 'returns :exclude from env var' do
+        allow(ENV).to receive(:[]).with('DIFFDASH_INTERPOLATED_LOGS').and_return('exclude')
         loader = described_class.new(working_dir: temp_dir)
         expect(loader.interpolated_logs).to eq(:exclude)
       end
 
-      it "returns :warn from env var" do
-        allow(ENV).to receive(:[]).with("DIFFDASH_INTERPOLATED_LOGS").and_return("warn")
+      it 'returns :warn from env var' do
+        allow(ENV).to receive(:[]).with('DIFFDASH_INTERPOLATED_LOGS').and_return('warn')
         loader = described_class.new(working_dir: temp_dir)
         expect(loader.interpolated_logs).to eq(:warn)
       end
 
-      it "env var overrides YAML config" do
+      it 'env var overrides YAML config' do
         create_config_file(<<~YAML)
           signals:
             interpolated_logs: include
         YAML
-        allow(ENV).to receive(:[]).with("DIFFDASH_INTERPOLATED_LOGS").and_return("exclude")
+        allow(ENV).to receive(:[]).with('DIFFDASH_INTERPOLATED_LOGS').and_return('exclude')
         loader = described_class.new(working_dir: temp_dir)
         expect(loader.interpolated_logs).to eq(:exclude)
       end
 
-      it "defaults to :include for invalid env var" do
-        allow(ENV).to receive(:[]).with("DIFFDASH_INTERPOLATED_LOGS").and_return("invalid")
+      it 'defaults to :include for invalid env var' do
+        allow(ENV).to receive(:[]).with('DIFFDASH_INTERPOLATED_LOGS').and_return('invalid')
         loader = described_class.new(working_dir: temp_dir)
         expect(loader.interpolated_logs).to eq(:include)
       end

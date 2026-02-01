@@ -2,7 +2,7 @@
 
 RSpec.describe Diffdash::Engine::Engine do
   let(:temp_dir) { Dir.mktmpdir }
-  let(:ruby_file) { File.join(temp_dir, "app.rb") }
+  let(:ruby_file) { File.join(temp_dir, 'app.rb') }
 
   before do
     # Create a Ruby file with both interpolated and structured logs
@@ -38,9 +38,9 @@ RSpec.describe Diffdash::Engine::Engine do
     change_set
   end
 
-  describe "interpolated_logs filtering" do
-    context "when interpolated_logs is :include (default)" do
-      it "includes all logs in the bundle" do
+  describe 'interpolated_logs filtering' do
+    context 'when interpolated_logs is :include (default)' do
+      it 'includes all logs in the bundle' do
         config = create_config(:include)
         engine = described_class.new(config: config)
         bundle = engine.run(change_set: create_change_set)
@@ -50,8 +50,8 @@ RSpec.describe Diffdash::Engine::Engine do
       end
     end
 
-    context "when interpolated_logs is :exclude" do
-      it "excludes interpolated logs from the bundle" do
+    context 'when interpolated_logs is :exclude' do
+      it 'excludes interpolated logs from the bundle' do
         config = create_config(:exclude)
         engine = described_class.new(config: config)
         bundle = engine.run(change_set: create_change_set)
@@ -61,12 +61,12 @@ RSpec.describe Diffdash::Engine::Engine do
         expect(engine.excluded_interpolated_count).to eq(1)
 
         log_names = bundle.logs.map(&:name)
-        expect(log_names).to include("Starting process")
-        expect(log_names).to include("process_complete")
+        expect(log_names).to include('Starting process')
+        expect(log_names).to include('process_complete')
         expect(log_names).not_to include(match(/Processing user/))
       end
 
-      it "tracks excluded count in metadata" do
+      it 'tracks excluded count in metadata' do
         config = create_config(:exclude)
         engine = described_class.new(config: config)
         bundle = engine.run(change_set: create_change_set)
@@ -75,8 +75,8 @@ RSpec.describe Diffdash::Engine::Engine do
       end
     end
 
-    context "when interpolated_logs is :warn" do
-      it "includes all logs (warn only affects CLI output)" do
+    context 'when interpolated_logs is :warn' do
+      it 'includes all logs (warn only affects CLI output)' do
         config = create_config(:warn)
         engine = described_class.new(config: config)
         bundle = engine.run(change_set: create_change_set)

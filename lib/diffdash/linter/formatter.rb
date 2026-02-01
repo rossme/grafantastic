@@ -23,7 +23,7 @@ module Diffdash
       private
 
       def no_issues_message
-        "No lint issues found. Your observability patterns look good!"
+        'No lint issues found. Your observability patterns look good!'
       end
 
       def summary_output
@@ -34,9 +34,9 @@ module Diffdash
           lines << format_rule_summary(rule, rule_issues)
         end
 
-        lines << ""
+        lines << ''
         lines << example_block
-        lines << ""
+        lines << ''
         lines << "Run 'diffdash lint --verbose' for details."
 
         lines.join("\n")
@@ -48,16 +48,16 @@ module Diffdash
         grouped = @issues.group_by(&:rule)
         grouped.each do |rule, rule_issues|
           lines << format_rule_header(rule, rule_issues.size)
-          lines << ""
+          lines << ''
 
           rule_issues.each do |issue|
             lines << format_issue(issue)
-            lines << ""
+            lines << ''
           end
         end
 
         lines << example_block
-        lines << ""
+        lines << ''
         lines << format_summary
 
         lines.join("\n")
@@ -65,7 +65,7 @@ module Diffdash
 
       def format_rule_summary(rule, rule_issues)
         case rule
-        when "interpolated-logs"
+        when 'interpolated-logs'
           "Found #{pluralize(rule_issues.size, 'log')} with string interpolation."
         else
           "Found #{pluralize(rule_issues.size, 'issue')} for rule: #{rule}"
@@ -74,7 +74,7 @@ module Diffdash
 
       def format_rule_header(rule, count)
         case rule
-        when "interpolated-logs"
+        when 'interpolated-logs'
           "Interpolated logs (#{count} found):"
         else
           "#{rule} (#{count} found):"
@@ -85,17 +85,11 @@ module Diffdash
         lines = []
         lines << "  #{relative_path(issue.file)}:#{issue.line}"
 
-        if issue.context[:original]
-          lines << "    #{issue.context[:original]}"
-        end
+        lines << "    #{issue.context[:original]}" if issue.context[:original]
 
-        if issue.context[:static_match]
-          lines << "    → Matches: \"#{issue.context[:static_match]}\""
-        end
+        lines << "    → Matches: \"#{issue.context[:static_match]}\"" if issue.context[:static_match]
 
-        if issue.suggestion
-          lines << "    → Suggested: #{issue.suggestion}"
-        end
+        lines << "    → Suggested: #{issue.suggestion}" if issue.suggestion
 
         lines.join("\n")
       end
@@ -110,12 +104,12 @@ module Diffdash
       end
 
       def format_summary
-        interpolated = @issues.count { |i| i.rule == "interpolated-logs" }
+        interpolated = @issues.count { |i| i.rule == 'interpolated-logs' }
         "Summary: #{pluralize(interpolated, 'interpolated log')} found"
       end
 
       def relative_path(path)
-        path.sub(%r{^#{Dir.pwd}/?}, "")
+        path.sub(%r{^#{Dir.pwd}/?}, '')
       end
 
       def pluralize(count, word)

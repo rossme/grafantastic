@@ -9,7 +9,7 @@ module Diffdash
     #   - Resolve and traverse ancestor hierarchy
     #   - Collect dynamic metrics (unresolvable signals)
     #   - Deduplicate results
-    # 
+    #
     # This is orchestration logic extracted from CLI
     class SignalCollector
       attr_reader :dynamic_metrics
@@ -30,7 +30,7 @@ module Diffdash
           next unless File.exist?(file_path)
 
           source = File.read(file_path)
-          
+
           # Detect signals in the primary file
           result = @detector.detect_with_metadata(
             source: source,
@@ -56,7 +56,7 @@ module Diffdash
 
         # Determine class/module structure
         structure = @detector.detect_structure(source: source, file_path: file_path)
-        
+
         # Recursively find all ancestors
         ancestors = @ancestor_resolver.collect_ancestors_from_structure(structure, file_path)
 

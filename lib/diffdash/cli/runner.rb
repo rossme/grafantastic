@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'English'
 module Diffdash
   module CLI
     # Thin CLI glue. Orchestrates engine + output adapters.
@@ -66,7 +67,7 @@ module Diffdash
             return list_kibana_spaces
           else
             warn "ERROR: 'folders' is only supported for 'grafana' or 'kibana'"
-            warn "Usage: diffdash grafana folders"
+            warn 'Usage: diffdash grafana folders'
             return 1
           end
         end
@@ -74,16 +75,16 @@ module Diffdash
         # Require an output to be specified (subcommand, env var, or config)
         # Skip this check for --list-signals since it doesn't need an output
         if !@list_signals && @output_subcommand.nil? && @config.outputs.empty?
-          warn "ERROR: No output specified."
-          warn ""
-          warn "Usage: diffdash <output> [options]"
-          warn ""
-          warn "Outputs:"
-          warn "  grafana      Generate Grafana dashboard"
-          warn "  kibana       Generate Kibana dashboard"
-          warn "  datadog      Generate Datadog dashboard"
-          warn "  json         Output raw signal JSON"
-          warn ""
+          warn 'ERROR: No output specified.'
+          warn ''
+          warn 'Usage: diffdash <output> [options]'
+          warn ''
+          warn 'Outputs:'
+          warn '  grafana      Generate Grafana dashboard'
+          warn '  kibana       Generate Kibana dashboard'
+          warn '  datadog      Generate Datadog dashboard'
+          warn '  json         Output raw signal JSON'
+          warn ''
           warn "Or set DIFFDASH_OUTPUTS environment variable or 'outputs' in diffdash.yml"
           return 1
         end
@@ -139,7 +140,7 @@ module Diffdash
         # Find dashboard URL from any successful output
         dashboard_url = find_dashboard_url(results)
         any_failed = errors.any?
-        
+
         # Summaries
         print_signal_summary(bundle, url: dashboard_url, upload_failed: any_failed)
 
@@ -371,16 +372,16 @@ module Diffdash
         cmd = ['bundle', 'exec', 'rspec', *rspec_args]
         warn "[diffdash] Running: #{cmd.join(' ')}"
         system(*cmd)
-        $?.success? ? 0 : 1
+        $CHILD_STATUS.success? ? 0 : 1
       end
 
       def run_lint
-        warn "[diffdash] Linting observability patterns..."
+        warn '[diffdash] Linting observability patterns...'
 
         change_set = Engine::ChangeSet.from_git(config: @config)
 
         if change_set.filtered_files.empty?
-          warn "[diffdash] No Ruby files to lint"
+          warn '[diffdash] No Ruby files to lint'
           return 0
         end
 
@@ -390,7 +391,7 @@ module Diffdash
         issues = linter.run_on_change_set(change_set)
 
         formatter = Linter::Formatter.new(issues, verbose: @verbose)
-        warn ""
+        warn ''
         warn formatter.format
 
         issues.empty? ? 0 : 0 # Always return 0 for now (warnings only)
@@ -398,7 +399,7 @@ module Diffdash
 
       def find_dashboard_url(results)
         # Check each adapter for a URL, prioritize in order: grafana, kibana, datadog
-        [:grafana, :kibana, :datadog].each do |adapter|
+        %i[grafana kibana datadog].each do |adapter|
           url = results.dig(adapter, :url)
           return url if url
         end
@@ -415,14 +416,14 @@ module Diffdash
 
         # Build signal breakdown
         signal_parts = []
-        signal_parts << pluralize(log_count, 'log') if log_count > 0
-        signal_parts << pluralize(counter_count, 'counter') if counter_count > 0
-        signal_parts << pluralize(gauge_count, 'gauge') if gauge_count > 0
-        signal_parts << pluralize(histogram_count, 'histogram') if histogram_count > 0
-        signal_parts << pluralize(summary_count, 'summary') if summary_count > 0
+        signal_parts << pluralize(log_count, 'log') if log_count.positive?
+        signal_parts << pluralize(counter_count, 'counter') if counter_count.positive?
+        signal_parts << pluralize(gauge_count, 'gauge') if gauge_count.positive?
+        signal_parts << pluralize(histogram_count, 'histogram') if histogram_count.positive?
+        signal_parts << pluralize(summary_count, 'summary') if summary_count.positive?
 
         # Build panel count
-        total_panels = [log_count, counter_count, gauge_count, histogram_count, summary_count].count { |c| c > 0 }
+        total_panels = [log_count, counter_count, gauge_count, histogram_count, summary_count].count(&:positive?)
 
         warn ''
         warn "[diffdash] Dashboard created with #{pluralize(total_panels, 'panel')}: #{signal_parts.join(', ')}"
@@ -437,17 +438,18 @@ module Diffdash
           warn '[diffdash] Dashboard JSON printed to stdout'
         end
 
-        if dynamic_count > 0
+        if dynamic_count.positive?
           warn "[diffdash] Note: #{pluralize(dynamic_count, 'dynamic metric')} could not be added"
           warn_dynamic_metrics_details if @verbose
         end
 
         # Show interpolated logs info
-        if @excluded_interpolated_count && @excluded_interpolated_count > 0
-          warn "[diffdash] Excluded #{pluralize(@excluded_interpolated_count, 'interpolated log')} (config: interpolated_logs: exclude)"
+        if @excluded_interpolated_count&.positive?
+          warn "[diffdash] Excluded #{pluralize(@excluded_interpolated_count,
+                                                'interpolated log')} (config: interpolated_logs: exclude)"
         else
           lint_count = @lint_issues&.size || 0
-          if lint_count > 0
+          if lint_count.positive?
             warn "[diffdash] ⚠ Found #{pluralize(lint_count, 'interpolated log')} (run 'diffdash lint' for suggestions)"
           end
         end
@@ -468,7 +470,7 @@ module Diffdash
 
       def warn_dynamic_metrics_summary
         dynamic_count = @dynamic_metrics&.size || 0
-        return if dynamic_count == 0
+        return if dynamic_count.zero?
 
         warn "[diffdash] Note: #{dynamic_count} dynamic metric#{unless dynamic_count == 1
                                                                   's'
@@ -507,11 +509,11 @@ module Diffdash
           logs_by_class.each do |klass, class_logs|
             puts "  #{klass}:"
             class_logs.each do |log|
-              level = log.metadata[:level] || "info"
+              level = log.metadata[:level] || 'info'
               puts "    • \"#{log.name}\" (#{level})"
             end
           end
-          puts ""
+          puts ''
         end
 
         if metrics.any?
@@ -523,7 +525,7 @@ module Diffdash
               puts "    • #{metric.name}"
             end
           end
-          puts ""
+          puts ''
         end
 
         if @dynamic_metrics.any?
@@ -531,12 +533,12 @@ module Diffdash
           @dynamic_metrics.each do |m|
             puts "  • #{m[:receiver]}.#{m[:type]} in #{m[:class]} (#{m[:file]}:#{m[:line]})"
           end
-          puts ""
+          puts ''
         end
 
-        if logs.empty? && metrics.empty?
-          puts "No observability signals found in changed files.\n\n"
-        end
+        return unless logs.empty? && metrics.empty?
+
+        puts "No observability signals found in changed files.\n\n"
       end
 
       def post_pr_comment(dashboard_url, signal_bundle)

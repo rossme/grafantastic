@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../signal/log"
+require_relative '../signal/log'
 
 module Diffdash
   module Signals
@@ -35,7 +35,7 @@ module Diffdash
             log_call[:line]
           ].compact
 
-          digest = Digest::SHA256.hexdigest(components.join(":"))
+          digest = Digest::SHA256.hexdigest(components.join(':'))
           "log_#{digest[0, 8]}"
         end
       end

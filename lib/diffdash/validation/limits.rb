@@ -46,20 +46,20 @@ module Diffdash
         panels_to_remove = total_panels - @config.max_panels
 
         # Remove logs first (easiest to reduce)
-        while panels_to_remove > 0 && result[:logs].any?
+        while panels_to_remove.positive? && result[:logs].any?
           result[:logs].pop
           panels_to_remove -= 1
         end
 
         # Then metrics (but histograms cost 3 panels each)
-        while panels_to_remove > 0 && result[:metrics].any?
+        while panels_to_remove.positive? && result[:metrics].any?
           removed = result[:metrics].pop
           panel_cost = removed.metadata[:metric_type] == :histogram ? 3 : 1
           panels_to_remove -= panel_cost
         end
 
         # Finally events if still over
-        while panels_to_remove > 0 && result[:events].any?
+        while panels_to_remove.positive? && result[:events].any?
           result[:events].pop
           panels_to_remove -= 1
         end
@@ -69,12 +69,12 @@ module Diffdash
         excluded_metrics = metrics.size - result[:metrics].size
         excluded_events = events.size - result[:events].size
 
-        if excluded_logs > 0 || excluded_metrics > 0 || excluded_events > 0
+        if excluded_logs.positive? || excluded_metrics.positive? || excluded_events.positive?
           parts = []
-          parts << "#{excluded_logs} logs" if excluded_logs > 0
-          parts << "#{excluded_metrics} metrics" if excluded_metrics > 0
-          parts << "#{excluded_events} events" if excluded_events > 0
-          @warnings << "#{parts.join(", ")} not added to dashboard (panel limit: #{@config.max_panels})"
+          parts << "#{excluded_logs} logs" if excluded_logs.positive?
+          parts << "#{excluded_metrics} metrics" if excluded_metrics.positive?
+          parts << "#{excluded_events} events" if excluded_events.positive?
+          @warnings << "#{parts.join(', ')} not added to dashboard (panel limit: #{@config.max_panels})"
         end
 
         result
@@ -104,7 +104,7 @@ module Diffdash
       end
 
       def find_top_contributor(signals)
-        return "(none)" if signals.empty?
+        return '(none)' if signals.empty?
 
         counts = signals.group_by(&:defining_class).transform_values(&:size)
         top = counts.max_by { |_, v| v }

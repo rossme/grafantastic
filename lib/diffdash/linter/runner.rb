@@ -69,7 +69,7 @@ module Diffdash
             @issues << issue if issue
           end
         end
-      rescue ::Parser::SyntaxError, StandardError => e
+      rescue ::Parser::SyntaxError, StandardError
         # Skip files that can't be parsed
         nil
       end

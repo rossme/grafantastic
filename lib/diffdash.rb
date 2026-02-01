@@ -5,57 +5,57 @@
 # Automatically generates Grafana dashboards scoped to your PR's changes,
 # so you see exactly the logs and metrics that matter to you.
 
-require "json"
-require "digest"
+require 'json'
+require 'digest'
 
 begin
-  require "dotenv/load"
+  require 'dotenv/load'
 rescue LoadError
   # dotenv is optional
 end
 
-require_relative "diffdash/version"
-require_relative "diffdash/config_loader"
-require_relative "diffdash/config"
-require_relative "diffdash/git_context"
-require_relative "diffdash/file_filter"
-require_relative "diffdash/signals/signal"
-require_relative "diffdash/ast/parser"
-require_relative "diffdash/ast/visitor"
-require_relative "diffdash/ast/ancestor_resolver"
-require_relative "diffdash/detectors/ruby_detector"
-require_relative "diffdash/clients/grafana"
-require_relative "diffdash/clients/datadog"
-require_relative "diffdash/clients/kibana"
-require_relative "diffdash/services/signal_collector"
-require_relative "diffdash/services/pr_commenter"
-require_relative "diffdash/formatters/dashboard_title"
-require_relative "diffdash/signals/log_extractor"
-require_relative "diffdash/signals/metric_extractor"
-require_relative "diffdash/validation/limits"
+require_relative 'diffdash/version'
+require_relative 'diffdash/config_loader'
+require_relative 'diffdash/config'
+require_relative 'diffdash/git_context'
+require_relative 'diffdash/file_filter'
+require_relative 'diffdash/signals/signal'
+require_relative 'diffdash/ast/parser'
+require_relative 'diffdash/ast/visitor'
+require_relative 'diffdash/ast/ancestor_resolver'
+require_relative 'diffdash/detectors/ruby_detector'
+require_relative 'diffdash/clients/grafana'
+require_relative 'diffdash/clients/datadog'
+require_relative 'diffdash/clients/kibana'
+require_relative 'diffdash/services/signal_collector'
+require_relative 'diffdash/services/pr_commenter'
+require_relative 'diffdash/formatters/dashboard_title'
+require_relative 'diffdash/signals/log_extractor'
+require_relative 'diffdash/signals/metric_extractor'
+require_relative 'diffdash/validation/limits'
 
 # Engine (vendor-agnostic)
-require_relative "diffdash/engine/change_set"
-require_relative "diffdash/engine/signal_query"
-require_relative "diffdash/engine/signal_bundle"
-require_relative "diffdash/engine/signal"
-require_relative "diffdash/engine/engine"
+require_relative 'diffdash/engine/change_set'
+require_relative 'diffdash/engine/signal_query'
+require_relative 'diffdash/engine/signal_bundle'
+require_relative 'diffdash/engine/signal'
+require_relative 'diffdash/engine/engine'
 
 # Outputs (vendor-specific adapters)
-require_relative "diffdash/outputs/base"
-require_relative "diffdash/outputs/grafana"
-require_relative "diffdash/outputs/datadog"
-require_relative "diffdash/outputs/kibana"
-require_relative "diffdash/outputs/json"
+require_relative 'diffdash/outputs/base'
+require_relative 'diffdash/outputs/grafana'
+require_relative 'diffdash/outputs/datadog'
+require_relative 'diffdash/outputs/kibana'
+require_relative 'diffdash/outputs/json'
 
 # Linter
-require_relative "diffdash/linter/base"
-require_relative "diffdash/linter/interpolated_logs"
-require_relative "diffdash/linter/runner"
-require_relative "diffdash/linter/formatter"
+require_relative 'diffdash/linter/base'
+require_relative 'diffdash/linter/interpolated_logs'
+require_relative 'diffdash/linter/runner'
+require_relative 'diffdash/linter/formatter'
 
 # CLI
-require_relative "diffdash/cli/runner"
+require_relative 'diffdash/cli/runner'
 
 module Diffdash
   class Error < StandardError; end

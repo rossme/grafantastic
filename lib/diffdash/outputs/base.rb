@@ -9,7 +9,7 @@ module Diffdash
       end
 
       def render(_signal_bundle)
-        raise NotImplementedError, "Output adapter must implement #render"
+        raise NotImplementedError, 'Output adapter must implement #render'
       end
     end
   end

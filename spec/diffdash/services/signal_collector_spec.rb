@@ -3,10 +3,10 @@
 RSpec.describe Diffdash::Services::SignalCollector do
   subject(:collector) { described_class.new }
 
-  describe "#collect" do
-    context "with simple Ruby file" do
+  describe '#collect' do
+    context 'with simple Ruby file' do
       let(:temp_file) do
-        file = Tempfile.new(["test", ".rb"])
+        file = Tempfile.new(['test', '.rb'])
         file.write(<<~RUBY)
           class PaymentProcessor
             def process
@@ -21,20 +21,20 @@ RSpec.describe Diffdash::Services::SignalCollector do
 
       after { temp_file.unlink }
 
-      it "collects signals from the file" do
+      it 'collects signals from the file' do
         signals = collector.collect([temp_file.path])
 
         expect(signals).not_to be_empty
-        expect(signals.map(&:name)).to include("payment_processed", "payments_total")
+        expect(signals.map(&:name)).to include('payment_processed', 'payments_total')
       end
 
-      it "returns Signal objects" do
+      it 'returns Signal objects' do
         signals = collector.collect([temp_file.path])
 
         expect(signals.first).to be_a(Diffdash::Signal::Base)
       end
 
-      it "deduplicates identical signals" do
+      it 'deduplicates identical signals' do
         # Collect from the same file twice
         signals = collector.collect([temp_file.path, temp_file.path])
 
@@ -44,9 +44,9 @@ RSpec.describe Diffdash::Services::SignalCollector do
       end
     end
 
-    context "with file containing dynamic metrics" do
+    context 'with file containing dynamic metrics' do
       let(:temp_file) do
-        file = Tempfile.new(["test", ".rb"])
+        file = Tempfile.new(['test', '.rb'])
         file.write(<<~RUBY)
           class Service
             def track(metric_name)
@@ -60,14 +60,14 @@ RSpec.describe Diffdash::Services::SignalCollector do
 
       after { temp_file.unlink }
 
-      it "tracks dynamic metrics separately" do
+      it 'tracks dynamic metrics separately' do
         collector.collect([temp_file.path])
 
         expect(collector.dynamic_metrics).not_to be_empty
         expect(collector.dynamic_metrics.first[:file]).to eq(temp_file.path)
       end
 
-      it "includes metadata about dynamic metrics" do
+      it 'includes metadata about dynamic metrics' do
         collector.collect([temp_file.path])
 
         metric = collector.dynamic_metrics.first
@@ -75,25 +75,25 @@ RSpec.describe Diffdash::Services::SignalCollector do
       end
     end
 
-    context "with nonexistent files" do
-      it "skips missing files gracefully" do
-        signals = collector.collect(["/nonexistent/file.rb"])
+    context 'with nonexistent files' do
+      it 'skips missing files gracefully' do
+        signals = collector.collect(['/nonexistent/file.rb'])
 
         expect(signals).to be_empty
       end
     end
 
-    context "with empty file list" do
-      it "returns empty array" do
+    context 'with empty file list' do
+      it 'returns empty array' do
         signals = collector.collect([])
 
         expect(signals).to be_empty
       end
     end
 
-    context "with mixed log and metric signals" do
+    context 'with mixed log and metric signals' do
       let(:temp_file) do
-        file = Tempfile.new(["test", ".rb"])
+        file = Tempfile.new(['test', '.rb'])
         file.write(<<~RUBY)
           class MixedService
             def run
@@ -109,7 +109,7 @@ RSpec.describe Diffdash::Services::SignalCollector do
 
       after { temp_file.unlink }
 
-      it "collects both log and metric signals" do
+      it 'collects both log and metric signals' do
         signals = collector.collect([temp_file.path])
 
         logs = signals.select(&:log?)
@@ -119,7 +119,7 @@ RSpec.describe Diffdash::Services::SignalCollector do
         expect(metrics).not_to be_empty
       end
 
-      it "correctly types each signal" do
+      it 'correctly types each signal' do
         signals = collector.collect([temp_file.path])
 
         signals.each do |signal|
@@ -129,16 +129,16 @@ RSpec.describe Diffdash::Services::SignalCollector do
       end
     end
 
-    describe "architectural boundaries" do
-      it "is a service that orchestrates detection" do
+    describe 'architectural boundaries' do
+      it 'is a service that orchestrates detection' do
         # Should coordinate detectors and resolvers, not do low-level parsing
         expect(collector).not_to respond_to(:process)
         expect(collector).not_to respond_to(:parse)
         expect(collector).to respond_to(:collect)
       end
 
-      it "returns domain objects (Signals), not hashes" do
-        temp_file = Tempfile.new(["test", ".rb"])
+      it 'returns domain objects (Signals), not hashes' do
+        temp_file = Tempfile.new(['test', '.rb'])
         temp_file.write('class T; def m; logger.info "x"; end; end')
         temp_file.close
 

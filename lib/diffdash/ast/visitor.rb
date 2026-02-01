@@ -75,7 +75,7 @@ module Diffdash
         class_name = extract_const_name(class_name_node)
         parent_name = parent_node ? extract_const_name(parent_node) : nil
 
-        full_class_name = @class_stack.empty? ? class_name : "#{@class_stack.join("::")}::#{class_name}"
+        full_class_name = @class_stack.empty? ? class_name : "#{@class_stack.join('::')}::#{class_name}"
 
         @class_definitions << {
           name: full_class_name,
@@ -97,7 +97,7 @@ module Diffdash
         module_name_node, body = node.children
         module_name = extract_const_name(module_name_node)
 
-        full_module_name = @class_stack.empty? ? module_name : "#{@class_stack.join("::")}::#{module_name}"
+        full_module_name = @class_stack.empty? ? module_name : "#{@class_stack.join('::')}::#{module_name}"
 
         @module_definitions << {
           name: full_module_name,
@@ -168,7 +168,7 @@ module Diffdash
           return true if recv_recv&.type == :const && LOG_RECEIVERS.include?(extract_const_name(recv_recv)&.to_sym)
         when :lvar, :ivar, :cvar
           # @logger.info or logger.info or @@logger.info
-          return receiver.children.first.to_s.include?("logger")
+          return receiver.children.first.to_s.include?('logger')
         when :const
           # LOG.info or LOGGER.info (constant logger objects)
           const_name = extract_const_name(receiver)
@@ -190,7 +190,7 @@ module Diffdash
       # Receivers that use direct action pattern (StatsD.increment("name"))
       DIRECT_ACTION_RECEIVERS = %i[StatsD Statsd Datadog DogStatsD Hesiod].freeze
 
-      def metric_call?(receiver, method_name, args)
+      def metric_call?(receiver, method_name, _args)
         return false unless receiver
 
         # Direct calls: StatsD.increment("metric"), Datadog.gauge("metric", val)
@@ -199,9 +199,7 @@ module Diffdash
           return false unless METRIC_RECEIVERS.include?(const_name)
 
           # For direct-action receivers (StatsD, Datadog, etc.), accept their action methods
-          if DIRECT_ACTION_RECEIVERS.include?(const_name)
-            return STATSD_ACTION_METHODS.include?(method_name)
-          end
+          return STATSD_ACTION_METHODS.include?(method_name) if DIRECT_ACTION_RECEIVERS.include?(const_name)
 
           # For factory-pattern receivers (Prometheus), reject factory methods as direct calls
           return !METRIC_FACTORY_METHODS.include?(method_name)
@@ -210,7 +208,7 @@ module Diffdash
         # Chained calls: Prometheus.counter(:name).increment
         # Match when receiver is a send (factory call) on a metric receiver
         if receiver.type == :send
-          recv_recv, recv_method, *recv_args = receiver.children
+          recv_recv, recv_method, = receiver.children
           if recv_recv&.type == :const
             const_name = extract_const_name(recv_recv)&.to_sym
             return METRIC_RECEIVERS.include?(const_name) && METRIC_FACTORY_METHODS.include?(recv_method)
@@ -220,20 +218,20 @@ module Diffdash
         false
       end
 
-      def record_log_call(node, receiver, method_name, args)
+      def record_log_call(node, _receiver, method_name, args)
         # Handle generic methods (add, log) that take severity as first arg
         if LOG_GENERIC_METHODS.include?(method_name)
           level, *message_args = extract_generic_log_info(args)
           event_name = extract_log_event_name(message_args)
           interpolated = log_is_interpolated?(message_args)
-          
+
           @log_calls << {
             node: node,
             method: method_name.to_s,
-            level: level || "info",
+            level: level || 'info',
             event_name: event_name,
             interpolated: interpolated,
-            defining_class: @current_class || "(top-level)",
+            defining_class: @current_class || '(top-level)',
             line: node.loc&.line
           }
         else
@@ -247,15 +245,15 @@ module Diffdash
             level: method_name.to_s,
             event_name: event_name,
             interpolated: interpolated,
-            defining_class: @current_class || "(top-level)",
+            defining_class: @current_class || '(top-level)',
             line: node.loc&.line
           }
         end
       end
-      
+
       def extract_generic_log_info(args)
         return [nil] if args.empty?
-        
+
         first_arg = args.first
         # Generic log methods can be called as:
         # logger.add(Logger::INFO, "message")
@@ -263,24 +261,24 @@ module Diffdash
         # logger.add("message") - defaults to info
         if first_arg&.type == :sym && LOG_METHODS.include?(first_arg.children.first)
           level = first_arg.children.first.to_s
-          [level, *args[1..-1]]
+          [level, *args[1..]]
         elsif first_arg&.type == :const
           # Handle Logger::INFO, Logger::DEBUG, etc.
           const_name = extract_const_name(first_arg)
           if const_name&.match?(/^Logger::/)
-            level = const_name.split("::").last.downcase
-            [level, *args[1..-1]]
+            level = const_name.split('::').last.downcase
+            [level, *args[1..]]
           else
-            ["info", *args]
+            ['info', *args]
           end
         elsif first_arg&.type == :int
           # Numeric severity levels (0=debug, 1=info, 2=warn, 3=error, 4=fatal, 5=unknown)
-          severity_map = ["debug", "info", "warn", "error", "fatal", "unknown"]
+          severity_map = %w[debug info warn error fatal unknown]
           severity_num = first_arg.children.first
-          level = severity_map[severity_num] || "info"
-          [level, *args[1..-1]]
+          level = severity_map[severity_num] || 'info'
+          [level, *args[1..]]
         else
-          ["info", *args]
+          ['info', *args]
         end
       end
 
@@ -291,13 +289,13 @@ module Diffdash
           @metric_calls << {
             name: metric_info[:name],
             metric_type: metric_info[:type],
-            defining_class: @current_class || "(top-level)",
+            defining_class: @current_class || '(top-level)',
             line: node.loc&.line
           }
         elsif metric_info && metric_info[:dynamic]
           @dynamic_metric_calls << {
             metric_type: metric_info[:type],
-            defining_class: @current_class || "(top-level)",
+            defining_class: @current_class || '(top-level)',
             line: node.loc&.line,
             receiver: metric_info[:receiver]
           }
@@ -323,17 +321,15 @@ module Diffdash
           # Return the static parts as-is for Grafana matching
           # This allows queries like |= "Loaded widget " to match all instances
           message.empty? ? nil : message
-        else
-          nil
         end
       end
 
       # Check if the log message is an interpolated string
       def log_is_interpolated?(args)
         return false if args.empty?
+
         args.first&.type == :dstr
       end
-
 
       def extract_metric_info(receiver, method_name, args)
         # Handle chained calls: Prometheus.counter(:name).increment
@@ -356,13 +352,12 @@ module Diffdash
           metric_name = extract_metric_name(args)
           metric_type = infer_metric_type(method_name)
 
-          if metric_name
-            return { name: metric_name, type: metric_type }
-          else
-            # Dynamic metric name detected
-            receiver_name = extract_const_name(receiver)
-            return { dynamic: true, type: metric_type, receiver: receiver_name }
-          end
+          return { name: metric_name, type: metric_type } if metric_name
+
+          # Dynamic metric name detected
+          receiver_name = extract_const_name(receiver)
+          return { dynamic: true, type: metric_type, receiver: receiver_name }
+
         end
 
         nil
@@ -377,8 +372,6 @@ module Diffdash
           first_arg.children.first
         when :sym
           first_arg.children.first.to_s
-        else
-          nil
         end
       end
 
@@ -402,8 +395,6 @@ module Diffdash
           else
             name.to_s
           end
-        else
-          nil
         end
       end
     end

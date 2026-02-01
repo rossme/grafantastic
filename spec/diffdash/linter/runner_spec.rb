@@ -14,12 +14,12 @@ RSpec.describe Diffdash::Linter::Runner do
     path
   end
 
-  describe "#run" do
+  describe '#run' do
     subject(:runner) { described_class.new }
 
-    context "with files containing interpolated logs" do
-      it "returns issues for each interpolated log" do
-        file = create_file("user_service.rb", <<~RUBY)
+    context 'with files containing interpolated logs' do
+      it 'returns issues for each interpolated log' do
+        file = create_file('user_service.rb', <<~RUBY)
           class UserService
             def create(user)
               logger.info("User \#{user.id} created")
@@ -31,13 +31,13 @@ RSpec.describe Diffdash::Linter::Runner do
         issues = runner.run([file])
 
         expect(issues.size).to eq(1)
-        expect(issues.first.rule).to eq("interpolated-logs")
+        expect(issues.first.rule).to eq('interpolated-logs')
       end
     end
 
-    context "with files containing only structured logs" do
-      it "returns no issues" do
-        file = create_file("clean_service.rb", <<~RUBY)
+    context 'with files containing only structured logs' do
+      it 'returns no issues' do
+        file = create_file('clean_service.rb', <<~RUBY)
           class CleanService
             def process
               logger.info("process_started")
@@ -52,13 +52,13 @@ RSpec.describe Diffdash::Linter::Runner do
       end
     end
 
-    context "with multiple files" do
-      it "analyzes all files" do
-        file1 = create_file("service_a.rb", <<~RUBY)
+    context 'with multiple files' do
+      it 'analyzes all files' do
+        file1 = create_file('service_a.rb', <<~RUBY)
           logger.info("User \#{id} logged in")
         RUBY
 
-        file2 = create_file("service_b.rb", <<~RUBY)
+        file2 = create_file('service_b.rb', <<~RUBY)
           logger.error("Order \#{order.id} failed")
         RUBY
 
@@ -71,10 +71,10 @@ RSpec.describe Diffdash::Linter::Runner do
       end
     end
 
-    context "with syntax errors in files" do
-      it "skips unparseable files without crashing" do
-        bad_file = create_file("broken.rb", "def foo(")
-        good_file = create_file("good.rb", 'logger.info("User #{id}")')
+    context 'with syntax errors in files' do
+      it 'skips unparseable files without crashing' do
+        bad_file = create_file('broken.rb', 'def foo(')
+        good_file = create_file('good.rb', 'logger.info("User #{id}")')
 
         issues = runner.run([bad_file, good_file])
 
@@ -83,22 +83,22 @@ RSpec.describe Diffdash::Linter::Runner do
       end
     end
 
-    context "with non-existent files" do
-      it "skips missing files without crashing" do
-        good_file = create_file("exists.rb", 'logger.info("User #{id}")')
+    context 'with non-existent files' do
+      it 'skips missing files without crashing' do
+        good_file = create_file('exists.rb', 'logger.info("User #{id}")')
 
-        issues = runner.run(["/nonexistent/file.rb", good_file])
+        issues = runner.run(['/nonexistent/file.rb', good_file])
 
         expect(issues.size).to eq(1)
       end
     end
   end
 
-  describe "#run_on_change_set" do
+  describe '#run_on_change_set' do
     subject(:runner) { described_class.new }
 
-    it "delegates to #run with filtered files" do
-      file = create_file("service.rb", 'logger.info("User #{id}")')
+    it 'delegates to #run with filtered files' do
+      file = create_file('service.rb', 'logger.info("User #{id}")')
 
       change_set = instance_double(
         Diffdash::Engine::ChangeSet,
@@ -111,11 +111,11 @@ RSpec.describe Diffdash::Linter::Runner do
     end
   end
 
-  describe "#issues_by_rule" do
+  describe '#issues_by_rule' do
     subject(:runner) { described_class.new }
 
-    it "groups issues by rule name" do
-      file = create_file("service.rb", <<~RUBY)
+    it 'groups issues by rule name' do
+      file = create_file('service.rb', <<~RUBY)
         logger.info("User \#{id} created")
         logger.error("Order \#{order_id} failed")
       RUBY
@@ -123,15 +123,15 @@ RSpec.describe Diffdash::Linter::Runner do
       runner.run([file])
 
       grouped = runner.issues_by_rule
-      expect(grouped["interpolated-logs"].size).to eq(2)
+      expect(grouped['interpolated-logs'].size).to eq(2)
     end
   end
 
-  describe "#issue_count" do
+  describe '#issue_count' do
     subject(:runner) { described_class.new }
 
-    it "returns total issue count" do
-      file = create_file("service.rb", <<~RUBY)
+    it 'returns total issue count' do
+      file = create_file('service.rb', <<~RUBY)
         logger.info("User \#{id}")
         logger.warn("Order \#{oid}")
       RUBY

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "parser/current"
+require 'parser/current'
 
 module Diffdash
   module AST
@@ -13,7 +13,7 @@ module Diffdash
     #   ast = Parser.parse(File.read("app/models/user.rb"), "app/models/user.rb")
     class Parser
       class << self
-        def parse(source, file_path = "(source)")
+        def parse(source, file_path = '(source)')
           buffer = ::Parser::Source::Buffer.new(file_path, source: source)
           parser = ::Parser::CurrentRuby.new
           parser.diagnostics.consumer = ->(diagnostic) {} # Silence warnings

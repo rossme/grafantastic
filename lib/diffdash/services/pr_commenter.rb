@@ -4,9 +4,9 @@ module Diffdash
   module Services
     # Posts comments to GitHub PRs with dashboard links and signal summaries
     class PrCommenter
-      COMMENT_MARKER = "<!-- diffdash-dashboard -->"
+      COMMENT_MARKER = '<!-- diffdash-dashboard -->'
 
-      def initialize(verbose: false, default_env: "production")
+      def initialize(verbose: false, default_env: 'production')
         @verbose = verbose
         @default_env = default_env
       end
@@ -42,17 +42,17 @@ module Diffdash
       private
 
       def github_pr_context?
-        ENV["GITHUB_ACTIONS"] == "true" && ENV["GITHUB_EVENT_NAME"] == "pull_request"
+        ENV['GITHUB_ACTIONS'] == 'true' && ENV['GITHUB_EVENT_NAME'] == 'pull_request'
       end
 
       def gh_cli_available?
-        system("which gh > /dev/null 2>&1")
+        system('which gh > /dev/null 2>&1')
       end
 
       def current_pr_number
         # In GitHub Actions, we can get PR number from GITHUB_REF or GITHUB_EVENT_PATH
-        if ENV["GITHUB_REF"]&.match?(%r{refs/pull/(\d+)/merge})
-          return ENV["GITHUB_REF"].match(%r{refs/pull/(\d+)/merge})[1]
+        if ENV['GITHUB_REF']&.match?(%r{refs/pull/(\d+)/merge})
+          return ENV['GITHUB_REF'].match(%r{refs/pull/(\d+)/merge})[1]
         end
 
         # Fallback: try to get from gh cli
@@ -68,12 +68,12 @@ module Diffdash
 
       def create_comment(pr_number, body)
         log_verbose("Creating PR comment on ##{pr_number}")
-        system("gh", "pr", "comment", pr_number, "--body", body)
+        system('gh', 'pr', 'comment', pr_number, '--body', body)
       end
 
       def update_comment(comment_id, body)
         log_verbose("Updating existing PR comment #{comment_id}")
-        system("gh", "api", "-X", "PATCH", "/repos/{owner}/{repo}/issues/comments/#{comment_id}", "-f", "body=#{body}")
+        system('gh', 'api', '-X', 'PATCH', "/repos/{owner}/{repo}/issues/comments/#{comment_id}", '-f', "body=#{body}")
       end
 
       def build_comment(dashboard_url, signal_bundle)
@@ -102,27 +102,29 @@ module Diffdash
         log_count = logs.size
         metric_count = metrics.size
 
-        return "A Grafana dashboard has been created for this PR's observability signals.\n\n" if log_count.zero? && metric_count.zero?
+        if log_count.zero? && metric_count.zero?
+          return "A Grafana dashboard has been created for this PR's observability signals.\n\n"
+        end
 
         parts = []
-        parts << "**#{log_count} #{log_count == 1 ? 'log' : 'logs'}**" if log_count > 0
-        parts << "**#{metric_count} #{metric_count == 1 ? 'metric' : 'metrics'}**" if metric_count > 0
+        parts << "**#{log_count} #{log_count == 1 ? 'log' : 'logs'}**" if log_count.positive?
+        parts << "**#{metric_count} #{metric_count == 1 ? 'metric' : 'metrics'}**" if metric_count.positive?
 
         section = "Detected #{parts.join(' and ')} in your changes:\n\n"
 
         # Group logs by defining class
-        if log_count > 0
+        if log_count.positive?
           section += "<details>\n<summary>📝 Logs</summary>\n\n"
           logs_by_class = logs.group_by(&:defining_class)
           logs_by_class.each do |klass, class_logs|
-            log_names = class_logs.map { |l| "`#{truncate(l.name, 40)}`" }.join(", ")
+            log_names = class_logs.map { |l| "`#{truncate(l.name, 40)}`" }.join(', ')
             section += "- **#{klass}** → #{log_names}\n"
           end
           section += "\n</details>\n\n"
         end
 
         # Group metrics by type
-        if metric_count > 0
+        if metric_count.positive?
           section += "<details>\n<summary>📈 Metrics</summary>\n\n"
           metrics.each do |m|
             type = m.metadata[:metric_type] || :counter

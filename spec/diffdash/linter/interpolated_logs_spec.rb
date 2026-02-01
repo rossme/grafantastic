@@ -3,21 +3,21 @@
 RSpec.describe Diffdash::Linter::InterpolatedLogs do
   subject(:rule) { described_class.new }
 
-  describe "#rule_name" do
-    it "returns the rule identifier" do
-      expect(rule.rule_name).to eq("interpolated-logs")
+  describe '#rule_name' do
+    it 'returns the rule identifier' do
+      expect(rule.rule_name).to eq('interpolated-logs')
     end
   end
 
-  describe "#check" do
+  describe '#check' do
     def log_calls_from(source)
       ast = Diffdash::AST::Parser.parse(source)
-      visitor = Diffdash::AST::Visitor.new(file_path: "test.rb", inheritance_depth: 0)
+      visitor = Diffdash::AST::Visitor.new(file_path: 'test.rb', inheritance_depth: 0)
       visitor.process(ast)
       visitor.log_calls
     end
 
-    context "with interpolated string" do
+    context 'with interpolated string' do
       let(:source) do
         <<~RUBY
           class UserService
@@ -28,40 +28,40 @@ RSpec.describe Diffdash::Linter::InterpolatedLogs do
         RUBY
       end
 
-      it "returns an issue" do
+      it 'returns an issue' do
         log_call = log_calls_from(source).first
-        issue = rule.check(log_call, "app/services/user_service.rb")
+        issue = rule.check(log_call, 'app/services/user_service.rb')
 
         expect(issue).not_to be_nil
-        expect(issue.rule).to eq("interpolated-logs")
-        expect(issue.file).to eq("app/services/user_service.rb")
+        expect(issue.rule).to eq('interpolated-logs')
+        expect(issue.file).to eq('app/services/user_service.rb')
       end
 
-      it "includes the original string in context" do
+      it 'includes the original string in context' do
         log_call = log_calls_from(source).first
-        issue = rule.check(log_call, "test.rb")
+        issue = rule.check(log_call, 'test.rb')
 
-        expect(issue.context[:original]).to include("User")
-        expect(issue.context[:original]).to include("logged in")
+        expect(issue.context[:original]).to include('User')
+        expect(issue.context[:original]).to include('logged in')
       end
 
-      it "includes static match in context" do
+      it 'includes static match in context' do
         log_call = log_calls_from(source).first
-        issue = rule.check(log_call, "test.rb")
+        issue = rule.check(log_call, 'test.rb')
 
-        expect(issue.context[:static_match]).to eq("User  logged in")
+        expect(issue.context[:static_match]).to eq('User  logged in')
       end
 
-      it "suggests structured logging" do
+      it 'suggests structured logging' do
         log_call = log_calls_from(source).first
-        issue = rule.check(log_call, "test.rb")
+        issue = rule.check(log_call, 'test.rb')
 
-        expect(issue.suggestion).to include("logger.info")
-        expect(issue.suggestion).to include("user_id")
+        expect(issue.suggestion).to include('logger.info')
+        expect(issue.suggestion).to include('user_id')
       end
     end
 
-    context "with plain string" do
+    context 'with plain string' do
       let(:source) do
         <<~RUBY
           class UserService
@@ -72,15 +72,15 @@ RSpec.describe Diffdash::Linter::InterpolatedLogs do
         RUBY
       end
 
-      it "returns nil (no issue)" do
+      it 'returns nil (no issue)' do
         log_call = log_calls_from(source).first
-        issue = rule.check(log_call, "test.rb")
+        issue = rule.check(log_call, 'test.rb')
 
         expect(issue).to be_nil
       end
     end
 
-    context "with symbol" do
+    context 'with symbol' do
       let(:source) do
         <<~RUBY
           class UserService
@@ -91,15 +91,15 @@ RSpec.describe Diffdash::Linter::InterpolatedLogs do
         RUBY
       end
 
-      it "returns nil (no issue)" do
+      it 'returns nil (no issue)' do
         log_call = log_calls_from(source).first
-        issue = rule.check(log_call, "test.rb")
+        issue = rule.check(log_call, 'test.rb')
 
         expect(issue).to be_nil
       end
     end
 
-    context "with multiple interpolations" do
+    context 'with multiple interpolations' do
       let(:source) do
         <<~RUBY
           class OrderService
@@ -110,23 +110,23 @@ RSpec.describe Diffdash::Linter::InterpolatedLogs do
         RUBY
       end
 
-      it "counts all interpolations" do
+      it 'counts all interpolations' do
         log_call = log_calls_from(source).first
-        issue = rule.check(log_call, "test.rb")
+        issue = rule.check(log_call, 'test.rb')
 
         expect(issue.context[:interpolation_count]).to eq(2)
       end
 
-      it "includes all variables in suggestion" do
+      it 'includes all variables in suggestion' do
         log_call = log_calls_from(source).first
-        issue = rule.check(log_call, "test.rb")
+        issue = rule.check(log_call, 'test.rb')
 
-        expect(issue.suggestion).to include("order_id")
-        expect(issue.suggestion).to include("user_email")
+        expect(issue.suggestion).to include('order_id')
+        expect(issue.suggestion).to include('user_email')
       end
     end
 
-    context "with Rails.logger" do
+    context 'with Rails.logger' do
       let(:source) do
         <<~RUBY
           class PaymentService
@@ -137,16 +137,16 @@ RSpec.describe Diffdash::Linter::InterpolatedLogs do
         RUBY
       end
 
-      it "detects interpolation in Rails.logger calls" do
+      it 'detects interpolation in Rails.logger calls' do
         log_call = log_calls_from(source).first
-        issue = rule.check(log_call, "test.rb")
+        issue = rule.check(log_call, 'test.rb')
 
         expect(issue).not_to be_nil
-        expect(issue.context[:original]).to include("Charging")
+        expect(issue.context[:original]).to include('Charging')
       end
     end
 
-    context "with local variable interpolation" do
+    context 'with local variable interpolation' do
       let(:source) do
         <<~RUBY
           def process
@@ -156,11 +156,11 @@ RSpec.describe Diffdash::Linter::InterpolatedLogs do
         RUBY
       end
 
-      it "extracts variable name" do
+      it 'extracts variable name' do
         log_call = log_calls_from(source).first
-        issue = rule.check(log_call, "test.rb")
+        issue = rule.check(log_call, 'test.rb')
 
-        expect(issue.suggestion).to include("count")
+        expect(issue.suggestion).to include('count')
       end
     end
   end
