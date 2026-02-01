@@ -120,6 +120,18 @@ module Diffdash
       file_value('excluded_directories') || %w[spec test config]
     end
 
+    # Signal filtering configuration
+    # Options: :include (default), :warn, :exclude
+    def interpolated_logs
+      env_val = env_value('DIFFDASH_INTERPOLATED_LOGS')
+      return env_val.to_sym if env_val && %w[include warn exclude].include?(env_val)
+
+      file_val = file_value('signals', 'interpolated_logs')
+      return file_val.to_sym if file_val && %w[include warn exclude].include?(file_val.to_s)
+
+      :include # default - include all logs
+    end
+
     # Returns the full configuration as a hash (useful for debugging)
     def to_h
       {
@@ -137,7 +149,8 @@ module Diffdash
         ignore_paths: ignore_paths,
         include_paths: include_paths,
         excluded_suffixes: excluded_suffixes,
-        excluded_directories: excluded_directories
+        excluded_directories: excluded_directories,
+        interpolated_logs: interpolated_logs
       }
     end
 

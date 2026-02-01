@@ -225,24 +225,28 @@ module Diffdash
         if LOG_GENERIC_METHODS.include?(method_name)
           level, *message_args = extract_generic_log_info(args)
           event_name = extract_log_event_name(message_args)
+          interpolated = log_is_interpolated?(message_args)
           
           @log_calls << {
             node: node,
             method: method_name.to_s,
             level: level || "info",
             event_name: event_name,
+            interpolated: interpolated,
             defining_class: @current_class || "(top-level)",
             line: node.loc&.line
           }
         else
           # Standard logger.info/debug/etc style calls
           event_name = extract_log_event_name(args)
+          interpolated = log_is_interpolated?(args)
 
           @log_calls << {
             node: node,
             method: method_name.to_s,
             level: method_name.to_s,
             event_name: event_name,
+            interpolated: interpolated,
             defining_class: @current_class || "(top-level)",
             line: node.loc&.line
           }
@@ -322,6 +326,12 @@ module Diffdash
         else
           nil
         end
+      end
+
+      # Check if the log message is an interpolated string
+      def log_is_interpolated?(args)
+        return false if args.empty?
+        args.first&.type == :dstr
       end
 
 

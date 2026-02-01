@@ -82,6 +82,11 @@ module Diffdash
       @loader.excluded_directories
     end
 
+    # Signal filtering - :include, :warn, or :exclude
+    def interpolated_logs
+      @loader.interpolated_logs
+    end
+
     # Returns the full configuration as a hash (useful for debugging)
     def to_h
       @loader.to_h.merge(

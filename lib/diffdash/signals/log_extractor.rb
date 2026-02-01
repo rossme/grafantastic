@@ -18,7 +18,8 @@ module Diffdash
               inheritance_depth: visitor.inheritance_depth,
               metadata: {
                 level: log_call[:level],
-                line: log_call[:line]
+                line: log_call[:line],
+                interpolated: log_call[:interpolated] || false
               }
             )
           end

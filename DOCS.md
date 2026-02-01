@@ -88,6 +88,33 @@ excluded_directories:
   - spec
   - test
   - config
+
+# Signal filtering
+signals:
+  # How to handle interpolated logs (include, warn, exclude)
+  interpolated_logs: include
+```
+
+### Signal Filtering
+
+Control how interpolated logs are handled in dashboards:
+
+```yaml
+signals:
+  interpolated_logs: exclude  # Options: include, warn, exclude
+```
+
+| Value | Behavior |
+|-------|----------|
+| `include` | Include all logs in dashboard (default) |
+| `warn` | Include all, but show CLI warning suggesting structured logging |
+| `exclude` | Exclude interpolated logs from dashboard |
+
+**Environment variable:** `DIFFDASH_INTERPOLATED_LOGS`
+
+```bash
+# Exclude interpolated logs via env var
+DIFFDASH_INTERPOLATED_LOGS=exclude diffdash grafana
 ```
 
 ### Environment Variables

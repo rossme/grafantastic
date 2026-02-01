@@ -63,3 +63,15 @@ excluded_directories:
   - spec
   - test
   - config
+
+# Signal filtering configuration
+signals:
+  # How to handle interpolated logs like: logger.info("User #{id} created")
+  # Options:
+  #   - include: Include in dashboards (default)
+  #   - warn:    Include, but show warning in CLI suggesting structured logging
+  #   - exclude: Exclude from dashboards entirely
+  #
+  # Structured logs (e.g., logger.info("user_created")) are always included.
+  # Use `diffdash lint` to find interpolated logs in your codebase.
+  interpolated_logs: include

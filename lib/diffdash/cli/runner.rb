@@ -107,7 +107,8 @@ module Diffdash
         bundle = engine.run(change_set: change_set)
         @dynamic_metrics = bundle.metadata[:dynamic_metrics] || []
         @limit_warnings = bundle.metadata[:limit_warnings] || []
-        @lint_issues = run_quick_lint(change_set)
+        @excluded_interpolated_count = bundle.metadata[:excluded_interpolated_count] || 0
+        @lint_issues = run_quick_lint(change_set) unless @config.interpolated_logs == :exclude
         log_verbose("Signals found: #{bundle.logs.size + bundle.metrics.size}")
 
         # Handle --list-signals flag
@@ -441,10 +442,14 @@ module Diffdash
           warn_dynamic_metrics_details if @verbose
         end
 
-        # Show lint warning if interpolated logs found
-        lint_count = @lint_issues&.size || 0
-        if lint_count > 0
-          warn "[diffdash] ⚠ Found #{pluralize(lint_count, 'interpolated log')} (run 'diffdash lint' for suggestions)"
+        # Show interpolated logs info
+        if @excluded_interpolated_count && @excluded_interpolated_count > 0
+          warn "[diffdash] Excluded #{pluralize(@excluded_interpolated_count, 'interpolated log')} (config: interpolated_logs: exclude)"
+        else
+          lint_count = @lint_issues&.size || 0
+          if lint_count > 0
+            warn "[diffdash] ⚠ Found #{pluralize(lint_count, 'interpolated log')} (run 'diffdash lint' for suggestions)"
+          end
         end
 
         warn ''

@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Signal filtering**: New `signals.interpolated_logs` config option to control interpolated log handling
+  - `include`: Include all logs (default)
+  - `warn`: Include all, show CLI warning
+  - `exclude`: Exclude interpolated logs from dashboards
+- Environment variable `DIFFDASH_INTERPOLATED_LOGS` for CI/CD override
 - YAML configuration file support (`diffdash.yml`) for shared team configuration
 - New `--config` CLI flag to specify custom config file path
 - Configurable file filtering: `ignore_paths`, `include_paths`, `excluded_suffixes`, `excluded_directories`
