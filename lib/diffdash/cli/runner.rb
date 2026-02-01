@@ -92,7 +92,7 @@ module Diffdash
         outputs = build_outputs(change_set)
         results, errors = run_outputs(outputs, bundle)
 
-        # Print Grafana JSON if available (preserve existing behavior)
+        # Print JSON output if available
         grafana_result = results[:grafana]
         json_result = results[:json]
         if grafana_result
@@ -101,10 +101,12 @@ module Diffdash
           puts JSON.pretty_generate(json_result[:payload])
         end
 
+        # Find dashboard URL from any successful output
+        dashboard_url = find_dashboard_url(results)
+        any_failed = errors.any?
+        
         # Summaries
-        grafana_failed = errors.any? { |e| e[:adapter] == :grafana }
-        dashboard_url = grafana_result&.dig(:url)
-        print_signal_summary(bundle, url: dashboard_url, grafana_failed: grafana_failed)
+        print_signal_summary(bundle, url: dashboard_url, upload_failed: any_failed)
 
         # Post PR comment with dashboard link and signal summary
         post_pr_comment(dashboard_url, bundle) if dashboard_url && @config.pr_comment?
@@ -306,7 +308,16 @@ module Diffdash
         $?.success? ? 0 : 1
       end
 
-      def print_signal_summary(bundle, url: nil, grafana_failed: false)
+      def find_dashboard_url(results)
+        # Check each adapter for a URL, prioritize in order: grafana, kibana, datadog
+        [:grafana, :kibana, :datadog].each do |adapter|
+          url = results.dig(adapter, :url)
+          return url if url
+        end
+        nil
+      end
+
+      def print_signal_summary(bundle, url: nil, upload_failed: false)
         log_count = bundle.logs.size
         counter_count = bundle.metrics.count { |s| s.metadata[:metric_type] == :counter }
         gauge_count = bundle.metrics.count { |s| s.metadata[:metric_type] == :gauge }
@@ -330,7 +341,7 @@ module Diffdash
 
         if url
           warn "[diffdash] Uploaded to: #{url}"
-        elsif grafana_failed
+        elsif upload_failed
           warn '[diffdash] Upload failed (see errors below)'
         elsif @dry_run
           warn '[diffdash] Mode: dry-run (not uploaded)'
