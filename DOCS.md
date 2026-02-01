@@ -149,14 +149,23 @@ API tokens are **only loaded from environment variables** — never from config 
 ## CLI Reference
 
 ```bash
-diffdash [command] [options]
+diffdash [output] [options]
 ```
+
+### Outputs
+
+| Output | Description |
+|--------|-------------|
+| `grafana` | Generate and upload Grafana dashboard |
+| `datadog` | Generate and upload Datadog dashboard |
+| `kibana` | Generate and upload Kibana dashboard |
+| `json` | Output raw signal data as JSON |
+| *(none)* | Use outputs from config or `DIFFDASH_OUTPUTS` |
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
-| *(none)* | Run analysis and generate/upload dashboard |
 | `folders` | List available Grafana folders |
 
 ### Options
@@ -173,20 +182,20 @@ diffdash [command] [options]
 ### Examples
 
 ```bash
-# Generate and upload dashboard
-diffdash
+# Generate Grafana dashboard
+diffdash grafana
+
+# Generate Kibana dashboard with verbose output
+diffdash kibana --verbose
+
+# Generate Datadog dashboard without uploading
+diffdash datadog --dry-run
 
 # See detected signals without uploading
 diffdash --list-signals
 
-# Dry run (generate JSON only)
-diffdash --dry-run
-
-# Multiple outputs
+# Use multiple outputs (via env var)
 DIFFDASH_OUTPUTS=grafana,json diffdash
-
-# Kibana output
-DIFFDASH_OUTPUTS=kibana diffdash --verbose
 ```
 
 ---

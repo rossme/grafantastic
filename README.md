@@ -39,22 +39,18 @@ diffdash
 | **Kibana** | Saved searches, metrics | ✅ |
 | **JSON** | Raw signal data | — |
 
-```bash
-# Use multiple outputs
-DIFFDASH_OUTPUTS=grafana,datadog diffdash
-
-# Kibana
-DIFFDASH_OUTPUTS=kibana diffdash
-```
-
 ## CLI
 
 ```bash
-diffdash                  # Generate and upload dashboard
-diffdash --dry-run        # Generate JSON only
-diffdash --list-signals   # Show detected signals
-diffdash --verbose        # Detailed output
-diffdash folders          # List Grafana folders
+diffdash grafana          # Generate Grafana dashboard
+diffdash kibana           # Generate Kibana dashboard  
+diffdash datadog          # Generate Datadog dashboard
+diffdash json             # Output raw signal JSON
+
+diffdash grafana --dry-run    # Generate without uploading
+diffdash --list-signals       # Show detected signals
+diffdash --verbose            # Detailed output
+diffdash folders              # List Grafana folders
 ```
 
 ## What It Detects

@@ -6,6 +6,7 @@ module Diffdash
     class Runner
       VALID_OPTIONS = %w[--dry-run --verbose -v --help -h --version --config --list-signals].freeze
       VALID_SUBCOMMANDS = %w[folders rspec].freeze
+      OUTPUT_SUBCOMMANDS = %w[grafana datadog kibana json].freeze
 
       def self.run(args)
         new(args).execute
@@ -21,6 +22,7 @@ module Diffdash
         @verbose = args.include?('--verbose') || args.include?('-v')
         @list_signals = args.include?('--list-signals')
         @subcommand = extract_subcommand(args)
+        @output_subcommand = extract_output_subcommand(args)
         @dynamic_metrics = []
       end
 
@@ -126,6 +128,10 @@ module Diffdash
         args.find { |arg| VALID_SUBCOMMANDS.include?(arg) }
       end
 
+      def extract_output_subcommand(args)
+        args.find { |arg| OUTPUT_SUBCOMMANDS.include?(arg) }
+      end
+
       def extract_config_path(args)
         idx = args.index('--config')
         return nil unless idx
@@ -146,7 +152,7 @@ module Diffdash
             next true
           end
 
-          VALID_OPTIONS.include?(arg) || VALID_SUBCOMMANDS.include?(arg)
+          VALID_OPTIONS.include?(arg) || VALID_SUBCOMMANDS.include?(arg) || OUTPUT_SUBCOMMANDS.include?(arg)
         end
       end
 
@@ -170,7 +176,14 @@ module Diffdash
       def build_outputs(change_set)
         title = Formatters::DashboardTitle.sanitize(change_set.branch_name)
 
-        @config.outputs.map do |output|
+        # If output subcommand specified (e.g., `diffdash kibana`), use only that output
+        outputs_to_use = if @output_subcommand
+                           [@output_subcommand.to_sym]
+                         else
+                           @config.outputs
+                         end
+
+        outputs_to_use.map do |output|
           case output
           when :grafana
             Outputs::Grafana.new(
@@ -419,67 +432,60 @@ module Diffdash
 
       def print_help
         puts <<~HELP
-          Usage: diffdash [command] [options]
+          Usage: diffdash [output] [options]
 
-          Analyzes Ruby files changed in the current PR and generates a Grafana dashboard.
+          Analyzes Ruby files changed in the current PR and generates observability dashboards.
+
+          Outputs (pick one):
+            grafana      Generate and upload Grafana dashboard
+            datadog      Generate and upload Datadog dashboard
+            kibana       Generate and upload Kibana dashboard
+            json         Output raw signal data as JSON
+            (none)       Use outputs from config or DIFFDASH_OUTPUTS env var
 
           Commands:
             folders      List available Grafana folders
             rspec [args] Run the RSpec suite (passes args through)
-            (none)       Run analysis and generate/upload dashboard
 
           Options:
             --config FILE    Path to diffdash.yml configuration file
-            --dry-run        Generate JSON only, skip Grafana connection
+            --dry-run        Generate JSON only, don't upload
             --list-signals   Show detected signals without generating dashboard
             --verbose        Print detailed progress information
             --version        Show version number
             --help           Show this help message
 
+          Examples:
+            diffdash grafana              # Generate Grafana dashboard
+            diffdash kibana --verbose     # Generate Kibana dashboard with details
+            diffdash datadog --dry-run    # Generate Datadog JSON without uploading
+            diffdash --list-signals       # Show what would be detected
+
           Configuration File (diffdash.yml):
-            You can create a diffdash.yml file in your repository root to share
-            configuration across your team. Environment variables always take
-            precedence over file values (except for secrets like API tokens,
-            which should ONLY be set via environment variables).
+            Create diffdash.yml in your repository root:
 
-            Config file is searched in this order:
-              1. Path specified via --config flag
-              2. diffdash.yml or .diffdash.yml in current directory
-              3. diffdash.yml or .diffdash.yml in git repository root
-
-          Example diffdash.yml:
             grafana:
               url: https://myorg.grafana.net
               folder_id: 42
 
-            ignore_paths:
-              - vendor/
-              - lib/legacy/
+            kibana:
+              url: https://my-deployment.kb.elastic.cloud
+              index_pattern: logs-myapp-default
+
+            datadog:
+              site: datadoghq.com
 
             outputs:
-              - grafana
-              - datadog
-              - kibana
-              - json
-
-            default_env: production
-            pr_comment: true
-            app_name: my-service
+              - grafana    # Default outputs when no subcommand given
 
           Environment Variables:
-            DIFFDASH_GRAFANA_URL               Grafana instance URL
-            DIFFDASH_GRAFANA_TOKEN             Grafana API token (required, env only)
-            DIFFDASH_GRAFANA_FOLDER_ID         Target folder ID
-            DIFFDASH_OUTPUTS                   Comma-separated outputs (grafana, datadog, kibana, json)
-            DIFFDASH_DRY_RUN                   Set to 'true' to force dry-run mode
-            DIFFDASH_DEFAULT_ENV               Default environment filter
-            DIFFDASH_PR_COMMENT                Set to 'false' to disable PR comments
-            DIFFDASH_APP_NAME                  Application name for dashboard
-            DIFFDASH_PR_DEPLOY_ANNOTATION_EXPR PromQL for PR deployment annotation
-
-          Output:
-            Prints output JSON to STDOUT (Grafana first if configured).
-            Errors and progress info go to STDERR.
+            DIFFDASH_GRAFANA_URL        Grafana instance URL
+            DIFFDASH_GRAFANA_TOKEN      Grafana API token
+            DIFFDASH_KIBANA_URL         Kibana instance URL
+            DIFFDASH_KIBANA_API_KEY     Kibana API key
+            DIFFDASH_DATADOG_API_KEY    Datadog API key
+            DIFFDASH_DATADOG_APP_KEY    Datadog Application key
+            DIFFDASH_OUTPUTS            Default outputs (comma-separated)
         HELP
       end
     end
