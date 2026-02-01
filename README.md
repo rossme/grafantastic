@@ -110,6 +110,23 @@ Environment variables always override config file values.
 | `DIFFDASH_KIBANA_URL` | Kibana URL |
 | `DIFFDASH_KIBANA_API_KEY` | Kibana API key |
 | `DIFFDASH_OUTPUTS` | Comma-separated outputs |
+| `DIFFDASH_INTERPOLATED_LOGS` | How to handle interpolated logs (`include`, `warn`, `exclude`) |
+
+### Signal Filtering
+
+Control how interpolated logs are handled:
+
+```yaml
+# diffdash.yml
+signals:
+  interpolated_logs: exclude  # exclude noisy dynamic logs
+```
+
+| Value | Behavior |
+|-------|----------|
+| `include` | Include all logs (default) |
+| `warn` | Include all, show CLI warning |
+| `exclude` | Exclude interpolated logs from dashboard |
 
 See [DOCS.md](DOCS.md) for full configuration reference.
 
