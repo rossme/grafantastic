@@ -5,7 +5,7 @@ module Diffdash
     # Thin CLI glue. Orchestrates engine + output adapters.
     class Runner
       VALID_OPTIONS = %w[--dry-run --verbose -v --help -h --version --config --list-signals].freeze
-      VALID_SUBCOMMANDS = %w[folders rspec].freeze
+      VALID_SUBCOMMANDS = %w[folders rspec lint].freeze
       OUTPUT_SUBCOMMANDS = %w[grafana datadog kibana json].freeze
 
       def self.run(args)
@@ -53,6 +53,8 @@ module Diffdash
           return list_grafana_folders
         when 'rspec'
           return run_rspec
+        when 'lint'
+          return run_lint
         end
 
         # Require an output to be specified (subcommand, env var, or config)
@@ -77,8 +79,8 @@ module Diffdash
 
         change_set = Engine::ChangeSet.from_git(config: @config)
         log_verbose("Branch: #{change_set.branch_name}")
-        log_verbose("Changed files: #{change_set.changed_files.size}")
-        log_verbose("Filtered Ruby files: #{change_set.filtered_files.size}")
+        log_verbose("PR changed files: #{change_set.changed_files.size}")
+        log_verbose("Ruby files analyzed: #{change_set.filtered_files.size}")
 
         # Early exit if no files to analyze
         if change_set.filtered_files.empty?
@@ -91,7 +93,8 @@ module Diffdash
         bundle = engine.run(change_set: change_set)
         @dynamic_metrics = bundle.metadata[:dynamic_metrics] || []
         @limit_warnings = bundle.metadata[:limit_warnings] || []
-        log_verbose("Total signals extracted: #{bundle.logs.size + bundle.metrics.size}")
+        @lint_issues = run_quick_lint(change_set)
+        log_verbose("Signals found: #{bundle.logs.size + bundle.metrics.size}")
 
         # Handle --list-signals flag
         if @list_signals
@@ -325,6 +328,28 @@ module Diffdash
         $?.success? ? 0 : 1
       end
 
+      def run_lint
+        warn "[diffdash] Linting observability patterns..."
+
+        change_set = Engine::ChangeSet.from_git(config: @config)
+
+        if change_set.filtered_files.empty?
+          warn "[diffdash] No Ruby files to lint"
+          return 0
+        end
+
+        warn "[diffdash] Analyzing #{change_set.filtered_files.size} files..."
+
+        linter = Linter::Runner.new(config: @config)
+        issues = linter.run_on_change_set(change_set)
+
+        formatter = Linter::Formatter.new(issues, verbose: @verbose)
+        warn ""
+        warn formatter.format
+
+        issues.empty? ? 0 : 0 # Always return 0 for now (warnings only)
+      end
+
       def find_dashboard_url(results)
         # Check each adapter for a URL, prioritize in order: grafana, kibana, datadog
         [:grafana, :kibana, :datadog].each do |adapter|
@@ -371,11 +396,24 @@ module Diffdash
           warn_dynamic_metrics_details if @verbose
         end
 
+        # Show lint warning if interpolated logs found
+        lint_count = @lint_issues&.size || 0
+        if lint_count > 0
+          warn "[diffdash] ⚠ Found #{pluralize(lint_count, 'interpolated log')} (run 'diffdash lint' for suggestions)"
+        end
+
         warn ''
       end
 
       def pluralize(count, word)
         count == 1 ? "#{count} #{word}" : "#{count} #{word}s"
+      end
+
+      def run_quick_lint(change_set)
+        linter = Linter::Runner.new(config: @config)
+        linter.run_on_change_set(change_set)
+      rescue StandardError
+        [] # Don't fail dashboard generation if lint fails
       end
 
       def warn_dynamic_metrics_summary
@@ -472,6 +510,7 @@ module Diffdash
             (none)       Use outputs from config or DIFFDASH_OUTPUTS env var
 
           Commands:
+            lint         Check for observability best practices
             folders      List available Grafana folders
             rspec [args] Run the RSpec suite (passes args through)
 
@@ -487,6 +526,8 @@ module Diffdash
             diffdash grafana              # Generate Grafana dashboard
             diffdash kibana --verbose     # Generate Kibana dashboard with details
             diffdash datadog --dry-run    # Generate Datadog JSON without uploading
+            diffdash lint                 # Check for observability issues
+            diffdash lint --verbose       # Show details for each issue
             diffdash --list-signals       # Show what would be detected
 
           Configuration File (diffdash.yml):

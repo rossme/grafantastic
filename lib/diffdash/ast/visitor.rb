@@ -227,6 +227,8 @@ module Diffdash
           event_name = extract_log_event_name(message_args)
           
           @log_calls << {
+            node: node,
+            method: method_name.to_s,
             level: level || "info",
             event_name: event_name,
             defining_class: @current_class || "(top-level)",
@@ -237,6 +239,8 @@ module Diffdash
           event_name = extract_log_event_name(args)
 
           @log_calls << {
+            node: node,
+            method: method_name.to_s,
             level: method_name.to_s,
             event_name: event_name,
             defining_class: @current_class || "(top-level)",

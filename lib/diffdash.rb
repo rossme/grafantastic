@@ -48,6 +48,12 @@ require_relative "diffdash/outputs/datadog"
 require_relative "diffdash/outputs/kibana"
 require_relative "diffdash/outputs/json"
 
+# Linter
+require_relative "diffdash/linter/base"
+require_relative "diffdash/linter/interpolated_logs"
+require_relative "diffdash/linter/runner"
+require_relative "diffdash/linter/formatter"
+
 # CLI
 require_relative "diffdash/cli/runner"
 
