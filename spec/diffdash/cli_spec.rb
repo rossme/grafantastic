@@ -11,7 +11,7 @@ RSpec.describe Diffdash::CLI::Runner do
 
   describe ".run" do
     it "creates new instance and calls execute" do
-      expect(described_class.run(["--dry-run"])).to eq(0)
+      expect(described_class.run(["json", "--dry-run"])).to eq(0)
     end
   end
 
@@ -55,23 +55,38 @@ RSpec.describe Diffdash::CLI::Runner do
       end
     end
 
+    context "with no output specified" do
+      it "returns exit code 1" do
+        result = silence_stderr { described_class.run([]) }
+        expect(result).to eq(1)
+      end
+
+      it "outputs error message to stderr" do
+        expect { described_class.run([]) }.to output(/No output specified/).to_stderr
+      end
+
+      it "suggests valid outputs" do
+        expect { described_class.run([]) }.to output(/grafana.*kibana.*datadog.*json/m).to_stderr
+      end
+    end
+
     context "with no changed files" do
       it "does not generate a dashboard" do
-        output = capture_stdout { described_class.run(["--dry-run"]) }
+        output = capture_stdout { described_class.run(["json", "--dry-run"]) }
 
         expect(output).to be_empty
       end
 
       it "outputs 'No changed files found' message to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/No changed files found/).to_stderr
+        expect { described_class.run(["json", "--dry-run"]) }.to output(/No changed files found/).to_stderr
       end
 
       it "outputs 'Dashboard not created' message to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/Dashboard not created/).to_stderr
+        expect { described_class.run(["json", "--dry-run"]) }.to output(/Dashboard not created/).to_stderr
       end
 
       it "returns 0 exit code" do
-        expect(described_class.run(["--dry-run"])).to eq(0)
+        expect(described_class.run(["json", "--dry-run"])).to eq(0)
       end
     end
 
@@ -82,21 +97,21 @@ RSpec.describe Diffdash::CLI::Runner do
       end
 
       it "does not generate a dashboard" do
-        output = capture_stdout { described_class.run(["--dry-run"]) }
+        output = capture_stdout { described_class.run(["json", "--dry-run"]) }
 
         expect(output).to be_empty
       end
 
       it "outputs 'No changed files found' message to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/No changed files found/).to_stderr
+        expect { described_class.run(["json", "--dry-run"]) }.to output(/No changed files found/).to_stderr
       end
 
       it "outputs 'Dashboard not created' message to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/Dashboard not created/).to_stderr
+        expect { described_class.run(["json", "--dry-run"]) }.to output(/Dashboard not created/).to_stderr
       end
 
       it "returns 0 exit code" do
-        expect(described_class.run(["--dry-run"])).to eq(0)
+        expect(described_class.run(["json", "--dry-run"])).to eq(0)
       end
     end
 
@@ -112,21 +127,21 @@ RSpec.describe Diffdash::CLI::Runner do
       end
 
       it "does not generate a dashboard" do
-        output = capture_stdout { described_class.run(["--dry-run"]) }
+        output = capture_stdout { described_class.run(["json", "--dry-run"]) }
 
         expect(output).to be_empty
       end
 
       it "outputs 'No observability signals found' message to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/No observability signals found in changed files/).to_stderr
+        expect { described_class.run(["json", "--dry-run"]) }.to output(/No observability signals found in changed files/).to_stderr
       end
 
       it "outputs 'Dashboard not created' message to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/Dashboard not created/).to_stderr
+        expect { described_class.run(["json", "--dry-run"]) }.to output(/Dashboard not created/).to_stderr
       end
 
       it "returns 0 exit code" do
-        expect(described_class.run(["--dry-run"])).to eq(0)
+        expect(described_class.run(["json", "--dry-run"])).to eq(0)
       end
     end
 
@@ -174,14 +189,14 @@ RSpec.describe Diffdash::CLI::Runner do
       end
 
       it "extracts signals from files" do
-        output = capture_stdout { described_class.run(["--dry-run"]) }
+        output = capture_stdout { described_class.run(["grafana", "--dry-run"]) }
         json = JSON.parse(output)
 
         expect(json["dashboard"]).to have_key("panels")
       end
 
       it "outputs valid JSON" do
-        output = capture_stdout { described_class.run(["--dry-run"]) }
+        output = capture_stdout { described_class.run(["grafana", "--dry-run"]) }
 
         expect { JSON.parse(output) }.not_to raise_error
       end
@@ -199,33 +214,33 @@ RSpec.describe Diffdash::CLI::Runner do
       end
 
       it "outputs counter count to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/2 counters/).to_stderr
+        expect { described_class.run(["grafana", "--dry-run"]) }.to output(/2 counters/).to_stderr
       end
 
       it "outputs gauge count to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/1 gauge/).to_stderr
+        expect { described_class.run(["grafana", "--dry-run"]) }.to output(/1 gauge/).to_stderr
       end
 
       it "outputs histogram count to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/1 histogram/).to_stderr
+        expect { described_class.run(["grafana", "--dry-run"]) }.to output(/1 histogram/).to_stderr
       end
 
       it "outputs log count to stderr" do
-        expect { described_class.run(["--dry-run"]) }.to output(/1 log/).to_stderr
+        expect { described_class.run(["grafana", "--dry-run"]) }.to output(/1 log/).to_stderr
       end
 
       it "outputs dry-run mode indicator" do
-        expect { described_class.run(["--dry-run"]) }.to output(/Mode: dry-run/).to_stderr
+        expect { described_class.run(["grafana", "--dry-run"]) }.to output(/Mode: dry-run/).to_stderr
       end
 
       it "outputs summary after JSON" do
-        expect { described_class.run(["--dry-run"]) }.to output(/Dashboard created with 4 panels/).to_stderr
+        expect { described_class.run(["grafana", "--dry-run"]) }.to output(/Dashboard created with 4 panels/).to_stderr
       end
     end
 
     context "with --verbose flag" do
       it "outputs progress to stderr" do
-        expect { described_class.run(["--verbose", "--dry-run"]) }.to output(/Branch:/).to_stderr
+        expect { described_class.run(["json", "--verbose", "--dry-run"]) }.to output(/Branch:/).to_stderr
       end
     end
 
@@ -241,12 +256,12 @@ RSpec.describe Diffdash::CLI::Runner do
       end
 
       it "returns exit code 0 (dashboard still created)" do
-        result = silence_stderr { described_class.run(["--dry-run"]) }
+        result = silence_stderr { described_class.run(["grafana", "--dry-run"]) }
         expect(result).to eq(0)
       end
 
       it "outputs warning about excluded signals" do
-        expect { described_class.run(["--dry-run"]) }.to output(/Some signals were excluded/i).to_stderr
+        expect { described_class.run(["grafana", "--dry-run"]) }.to output(/Some signals were excluded/i).to_stderr
       end
     end
 
@@ -258,7 +273,7 @@ RSpec.describe Diffdash::CLI::Runner do
 
         expect(Diffdash::Clients::Grafana).not_to receive(:new)
 
-        described_class.run(["--dry-run"])
+        described_class.run(["grafana", "--dry-run"])
       end
     end
 
@@ -276,7 +291,7 @@ RSpec.describe Diffdash::CLI::Runner do
       it "removes special characters from branch name" do
         allow(git_context).to receive(:branch_name).and_return("feature/add-payments!")
 
-        output = capture_stdout { described_class.run(["--dry-run"]) }
+        output = capture_stdout { described_class.run(["grafana", "--dry-run"]) }
         json = JSON.parse(output)
 
         expect(json["dashboard"]["title"]).not_to include("/")
@@ -286,7 +301,7 @@ RSpec.describe Diffdash::CLI::Runner do
       it "truncates long branch names to 40 characters" do
         allow(git_context).to receive(:branch_name).and_return("a" * 50)
 
-        output = capture_stdout { described_class.run(["--dry-run"]) }
+        output = capture_stdout { described_class.run(["grafana", "--dry-run"]) }
         json = JSON.parse(output)
 
         expect(json["dashboard"]["title"].length).to be <= 40
@@ -295,7 +310,7 @@ RSpec.describe Diffdash::CLI::Runner do
       it "uses pr-dashboard for empty sanitized name" do
         allow(git_context).to receive(:branch_name).and_return("!!!")
 
-        output = capture_stdout { described_class.run(["--dry-run"]) }
+        output = capture_stdout { described_class.run(["grafana", "--dry-run"]) }
         json = JSON.parse(output)
 
         expect(json["dashboard"]["title"]).to eq("pr-dashboard")

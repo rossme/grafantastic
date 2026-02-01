@@ -55,6 +55,23 @@ module Diffdash
           return run_rspec
         end
 
+        # Require an output to be specified (subcommand, env var, or config)
+        # Skip this check for --list-signals since it doesn't need an output
+        if !@list_signals && @output_subcommand.nil? && @config.outputs.empty?
+          warn "ERROR: No output specified."
+          warn ""
+          warn "Usage: diffdash <output> [options]"
+          warn ""
+          warn "Outputs:"
+          warn "  grafana      Generate Grafana dashboard"
+          warn "  kibana       Generate Kibana dashboard"
+          warn "  datadog      Generate Datadog dashboard"
+          warn "  json         Output raw signal JSON"
+          warn ""
+          warn "Or set DIFFDASH_OUTPUTS environment variable or 'outputs' in diffdash.yml"
+          return 1
+        end
+
         warn "[diffdash] v#{VERSION}"
         log_config_info
 

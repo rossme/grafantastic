@@ -70,7 +70,7 @@ module Diffdash
       file_outputs = file_value('outputs')
       return file_outputs.map { |o| o.to_s.downcase.to_sym } if file_outputs.is_a?(Array) && file_outputs.any?
 
-      [:grafana] # default
+      [] # no default - require explicit output
     end
 
     # General settings
