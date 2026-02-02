@@ -310,6 +310,33 @@ Rails.logger.info("message")
 | Datadog | `increment`, `incr` | counter |
 | Datadog | `gauge`, `set` | gauge |
 | Hesiod | `emit` | counter |
+| Hesiod | `gauge` | gauge |
+
+### Metric Constant Resolution
+
+Diffdash automatically resolves metric constants defined in centralized files:
+
+```ruby
+# app/services/metrics.rb
+module Metrics
+  RequestTotal = Hesiod.register_counter("request_total")
+  QueueDepth = Hesiod.register_gauge("queue_depth")
+end
+
+# app/jobs/worker.rb
+class Worker
+  def perform
+    Metrics::RequestTotal.increment  # ✅ Resolved to "request_total"
+    Metrics::QueueDepth.set(5)       # ✅ Resolved to "queue_depth"
+  end
+end
+```
+
+Diffdash scans these common locations for metric definitions:
+- `app/services/metrics.rb`
+- `lib/metrics.rb`
+- `app/lib/metrics.rb`
+- `config/initializers/metrics.rb`
 
 ### Log Message Handling
 

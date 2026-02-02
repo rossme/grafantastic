@@ -7,8 +7,11 @@ module Diffdash
     # Output: Array of Signal objects
     # No Grafana-specific knowledge
     class RubyDetector
-      def initialize
+      attr_accessor :constant_resolver
+
+      def initialize(constant_resolver: nil)
         @parser = AST::Parser
+        @constant_resolver = constant_resolver
       end
 
       # Detect signals in Ruby source code
@@ -30,7 +33,11 @@ module Diffdash
         ast = @parser.parse(source, file_path)
         return { signals: [], dynamic_metrics: [] } unless ast
 
-        visitor = AST::Visitor.new(file_path: file_path, inheritance_depth: inheritance_depth)
+        visitor = AST::Visitor.new(
+          file_path: file_path,
+          inheritance_depth: inheritance_depth,
+          constant_resolver: @constant_resolver
+        )
         visitor.process(ast)
 
         signals = []

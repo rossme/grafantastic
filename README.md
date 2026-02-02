@@ -68,6 +68,9 @@ Rails.logger.error("payment_failed")
 StatsD.increment("orders.processed")
 Prometheus.counter(:requests_total).increment
 Hesiod.emit("cache.hit")
+
+# Also resolves centralized metric constants:
+Metrics::RequestTotal.increment  # → "request_total"
 ```
 
 ## GitHub Actions

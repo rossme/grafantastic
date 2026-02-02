@@ -37,9 +37,10 @@ module Diffdash
       HISTOGRAM_METHODS = %i[histogram observe timing time].freeze
       SUMMARY_METHODS = %i[summary].freeze
 
-      def initialize(file_path:, inheritance_depth:)
+      def initialize(file_path:, inheritance_depth:, constant_resolver: nil)
         @file_path = file_path
         @inheritance_depth = inheritance_depth
+        @constant_resolver = constant_resolver
         @class_definitions = []
         @module_definitions = []
         @log_calls = []
@@ -195,14 +196,22 @@ module Diffdash
 
         # Direct calls: StatsD.increment("metric"), Datadog.gauge("metric", val)
         if receiver.type == :const
-          const_name = extract_const_name(receiver)&.to_sym
-          return false unless METRIC_RECEIVERS.include?(const_name)
+          const_name = extract_const_name(receiver)
+          const_sym = const_name&.to_sym
 
-          # For direct-action receivers (StatsD, Datadog, etc.), accept their action methods
-          return STATSD_ACTION_METHODS.include?(method_name) if DIRECT_ACTION_RECEIVERS.include?(const_name)
+          # Check if it's a known metric receiver
+          if METRIC_RECEIVERS.include?(const_sym)
+            # For direct-action receivers (StatsD, Datadog, etc.), accept their action methods
+            return STATSD_ACTION_METHODS.include?(method_name) if DIRECT_ACTION_RECEIVERS.include?(const_sym)
 
-          # For factory-pattern receivers (Prometheus), reject factory methods as direct calls
-          return !METRIC_FACTORY_METHODS.include?(method_name)
+            # For factory-pattern receivers (Prometheus), reject factory methods as direct calls
+            return !METRIC_FACTORY_METHODS.include?(method_name)
+          end
+
+          # Check if it's a resolvable metric constant (e.g., Metrics::RequestTotal.increment)
+          if @constant_resolver && METRIC_ACTION_METHODS.include?(method_name)
+            return true if @constant_resolver.resolve(const_name)
+          end
         end
 
         # Chained calls: Prometheus.counter(:name).increment
@@ -349,15 +358,21 @@ module Diffdash
 
         # Handle direct calls: StatsD.increment("name")
         if receiver.type == :const
+          const_name = extract_const_name(receiver)
+
+          # Try to resolve via constant resolver first (e.g., Metrics::RequestTotal.increment)
+          if @constant_resolver
+            resolved = @constant_resolver.resolve(const_name)
+            return { name: resolved[:name], type: resolved[:type] } if resolved
+          end
+
           metric_name = extract_metric_name(args)
           metric_type = infer_metric_type(method_name)
 
           return { name: metric_name, type: metric_type } if metric_name
 
           # Dynamic metric name detected
-          receiver_name = extract_const_name(receiver)
-          return { dynamic: true, type: metric_type, receiver: receiver_name }
-
+          return { dynamic: true, type: metric_type, receiver: const_name }
         end
 
         nil

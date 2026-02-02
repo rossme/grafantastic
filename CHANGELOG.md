@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Metric constant resolution**: Automatically resolves centralized metric constants
+  - Handles patterns like `Metrics::RequestTotal.increment` → `"request_total"`
+  - Scans `app/services/metrics.rb`, `lib/metrics.rb`, and common locations
+  - Supports Hesiod, StatsD, and Prometheus registration patterns
 - **Signal filtering**: New `signals.interpolated_logs` config option to control interpolated log handling
   - `include`: Include all logs (default)
   - `warn`: Include all, show CLI warning
